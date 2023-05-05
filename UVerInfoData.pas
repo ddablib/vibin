@@ -17,7 +17,7 @@ uses
   // Delphi
   SysUtils, Windows, ActiveX, Classes,
   // Project
-  IntfBinaryVerInfo, UVerInfoRec;
+  UVerInfoRec;
 
 type
 
@@ -506,6 +506,14 @@ class procedure TVerInfoData.DecodeTransStr(const TransStr: string;
   out Language, CharSet: WORD);
   {Decodes the translation encoded in translation string TransStr into its
   language and character set components}
+
+  {$IF not Defined(StrToUInt)}
+  function StrToUInt(const AValue: string): Cardinal;
+  begin
+    Result := Cardinal(StrToInt(AValue));
+  end;
+  {$IFEND}
+
 begin
   Language := LongRec(StrToUInt('$' + Copy(TransStr, 1, 4))).Lo;
   CharSet := LongRec(StrToUInt('$' + Copy(TransStr, 5, 4))).Lo;
@@ -527,8 +535,10 @@ end;
 procedure TVerInfoData.DeleteStringByName(TableIdx: Integer; Name: string);
   {Delete the string info item with the given name from the string table with
   the given index. Exception raised if Name does not exist}
+var
+  StrIdx: Integer;
 begin
-  var StrIdx := IndexOfString(TableIdx, Name);
+  StrIdx := IndexOfString(TableIdx, Name);
   if StrIdx = -1 then
     Error(sBadStrName, [Name, TableIdx]);
   DeleteString(TableIdx, StrIdx);
@@ -810,8 +820,10 @@ function TVerInfoData.GetStringValueByName(TableIdx: Integer;
   {Returns the value of the string information item with the given name in the
   string table with the given index. Exception raised if table index is invalid
   if string with given name doesn't exist}
+var
+  StringIdx: Integer;
 begin
-  var StringIdx := IndexOfString(TableIdx, Name);
+  StringIdx := IndexOfString(TableIdx, Name);
   if StringIdx = -1 then
     Error(sBadStrName, [Name, TableIdx]);
   Result := GetStringValue(TableIdx, StringIdx);
@@ -1071,8 +1083,10 @@ procedure TVerInfoData.SetStringValueByName(TableIdx: Integer; const Name,
   {Sets the string item with the given name in the string table at the given
   table index to the given value. An exception is raised if either the table
   index is out of bounds or if Name doesn't exist in the string table}
+var
+  StrIdx: Integer;
 begin
-  var StrIdx := IndexOfString(TableIdx, Name);
+  StrIdx := IndexOfString(TableIdx, Name);
   if StrIdx = -1 then
     Error(sBadStrName, [Name, TableIdx]);
   // Set the string value
