@@ -13,13 +13,24 @@
 
 unit UVerInfoRec;
 
+{$Include .\DelphiDabbler.Lib.VIBin.Defines.inc}
 
 interface
 
 
 uses
   // Delphi
-  SysUtils, Classes, Windows, ActiveX,
+  {$IFDEF Supports_ScopedUnitNames}
+  System.SysUtils,
+  System.Classes,
+  Winapi.Windows,
+  Winapi.ActiveX,
+  {$ELSE}
+  SysUtils,
+  Classes,
+  Windows,
+  ActiveX,
+  {$ENDIF}
   // Project
   UVerInfoBinIO;
 

@@ -11,11 +11,19 @@
 
 unit UVerInfoBinIO;
 
+{$Include .\DelphiDabbler.Lib.VIBin.Defines.inc}
+
 interface
 
 uses
   // Delphi
-  ActiveX, AxCtrls;
+  {$IFDEF Supports_ScopedUnitNames}
+  Winapi.ActiveX,
+  Vcl.AxCtrls;
+  {$ELSE}
+  ActiveX,
+  AxCtrls;
+  {$ENDIF}
 
 type
 
@@ -62,7 +70,11 @@ implementation
 
 uses
   // Delphi
+  {$IFDEF Supports_ScopedUnitNames}
+  System.Classes;
+  {$ELSE}
   Classes;
+  {$ENDIF}
 
 resourcestring
   // Error messages
