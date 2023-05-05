@@ -15,7 +15,7 @@ interface
 
 uses
   // Delphi
-  ActiveX;
+  ActiveX, AxCtrls;
 
 type
 
@@ -30,9 +30,13 @@ type
   private
     fStream: IStream;
       {The wrapped stream}
+    fStreamAdapter: TOleStream;
+      {Adaptor to provide TStream interface for IStream}
   public
     constructor Create(const Stream: IStream);
-      {Class constructor: records reference to wrapped stream}
+      {Object constructor}
+    destructor Destroy; override;
+      {Object destructor}
     procedure ReadBuffer(var Buffer; Count: Integer);
       {Reads Count bytes from stream into given buffer. Raises exception if
       Count bytes cannot be read or if underlying stream read fails. Note that
@@ -75,19 +79,21 @@ constructor TVerInfoBinIO.Create(const Stream: IStream);
 begin
   inherited Create;
   fStream := Stream;
+  fStreamAdapter := TOleStream.Create(fStream);
+end;
+
+destructor TVerInfoBinIO.Destroy;
+begin
+  fStreamAdapter.Free;
+  inherited;
 end;
 
 function TVerInfoBinIO.GetPosition: LongInt;
   {Returns the current position in the stream. Raises exception if position can't
   be read}
-var
-  CurPos: UInt64;  // position in stream
 begin
   // Attempt to get position in stream
-  if not Succeeded(fStream.Seek(0, STREAM_SEEK_CUR, CurPos)) then
-    raise EStreamError.Create(sCantGetPos);
-  // Return position found, converted to 32 bits
-  Result := CurPos;
+  Result := LongInt(fStreamAdapter.Position);
 end;
 
 function TVerInfoBinIO.GetSize: LongInt;
@@ -126,8 +132,7 @@ var
   NewPos: UInt64;  // new position in stream
 begin
   // Attempt to seek to required position
-  if not Succeeded(fStream.Seek(Move, Origin, NewPos)) then
-    raise EStreamError.Create(sCantSeek);
+  NewPos := fStreamAdapter.Seek(Move, Origin);
   // Return new position converted to 32 bits
   Result := LongInt(NewPos);
 end;
