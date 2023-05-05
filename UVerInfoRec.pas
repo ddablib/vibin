@@ -660,9 +660,10 @@ procedure TVerInfoRecA.SetStringValue(const Str: string);
   {Sets value buffer to given string - also sets data type to 0}
 var
   BufLen: Integer;  // required value buffer size
+  StrA: AnsiString; // ANSI string conversion of Str
 begin
   // Allocate value buffer of required size
-  var StrA: AnsiString := AnsiString(Str);
+  StrA := AnsiString(Str);
   BufLen := SizeOf(AnsiChar) * (Length(StrA) + 1);
   AllocateValueBuffer(BufLen);
   // Store given string as an ANSI string in buffer
@@ -674,8 +675,10 @@ end;
 function TVerInfoRecA.ValuePtrToStr(const ValuePtr: Pointer): string;
   {Converts the text value pointed to by ValuePtr to string. ValuePtr points to
   an ANSI string}
+var
+  Value: AnsiString;
 begin
-  var Value: AnsiString := PAnsiChar(ValuePtr);
+  Value := PAnsiChar(ValuePtr);
   Result := UnicodeString(Value);
 end;
 
@@ -757,8 +760,10 @@ end;
 function TVerInfoRecW.ValuePtrToStr(const ValuePtr: Pointer): string;
   {Converts the text value pointed to by ValuePtr to string. ValuePtr points to
   a wide string}
+var
+  Value: UnicodeString;
 begin
-  var Value: UnicodeString := PWideChar(ValuePtr);
+  Value := PWideChar(ValuePtr);
   Result := Value;
 end;
 
