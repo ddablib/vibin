@@ -17,7 +17,7 @@ uses
   // Delphi
   SysUtils, Windows, ActiveX, Classes,
   // Project
-  IntfBinaryVerInfo, UVerInfoRec;
+  UVerInfoRec;
 
 type
 
