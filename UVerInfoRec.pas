@@ -3,7 +3,7 @@
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
  * obtain one at https://mozilla.org/MPL/2.0/
  *
- * Copyright (C) 2002-2022, Peter Johnson (https://gravatar.com/delphidabbler).
+ * Copyright (C) 2002-2023, Peter Johnson (https://gravatar.com/delphidabbler).
  *
  * Classes that encapsulate general version information records and expose
  * properties for the key record elements. They can also read and write their
@@ -25,14 +25,14 @@ uses
   System.Classes,
   Winapi.Windows,
   Winapi.ActiveX,
+  Vcl.AxCtrls;
   {$ELSE}
   SysUtils,
   Classes,
   Windows,
   ActiveX,
+  AxCtrls;
   {$ENDIF}
-  // Project
-  UVerInfoBinIO;
 
 
 type
@@ -107,28 +107,27 @@ type
       existing buffer first}
     procedure DeallocateValueBuffer;
       {Deallocates any existing value buffer}
-    function ReadObject(const Reader: TVerInfoBinIO): Integer;
+    function ReadObject(const Reader: TStream): Integer;
       {Reads the version information record object using the given reader and
       returns the number of bytes read}
-    function WriteObject(const Writer: TVerInfoBinIO): Integer;
+    function WriteObject(const Writer: TStream): Integer;
       {Writes the version information record object's binary data using the
       given writer and returns the number of bytes written}
-    function ReadPadding(const Reader: TVerInfoBinIO;
-      const BytesRead: Integer): Integer;
+    function ReadPadding(const Reader: TStream; const BytesRead: Integer):
+      Integer;
       {Reads any "padding" bytes necessary to round BytesRead up to a DWORD
       boundary. Returns the number of bytes read}
-    function WritePadding(const Writer: TVerInfoBinIO;
-      const BytesWritten: Integer): Integer;
+    function WritePadding(const Writer: TStream; const BytesWritten: Integer):
+      Integer;
       {Writes sufficent zero bytes to using given writer to pad given number of
       bytes written to a DWORD boundary. Returns number of bytes written}
-    function ReadHeader(const Reader: TVerInfoBinIO;
-      out RecSize, ValueSize, DataType: Word; out KeyName: string): Integer;
-      virtual; abstract;
+    function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+      DataType: Word; out KeyName: string): Integer; virtual; abstract;
       {Reads the common header fields, and any padding characters, from any
       version info structure. Returns number of bytes read. Descendants must
       implement since header format varies between 16 and 32 bit}
-    function WriteHeader(const Writer: TVerInfoBinIO;
-      out RecSizePos: LongInt): Integer; virtual; abstract;
+    function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
+      Integer; virtual; abstract;
       {Writes the common header fields, and any padding characters, from any
       version info structure. The position where the record size is written is
       passed back in RecSizePos (the actual value is written later once size
@@ -190,13 +189,12 @@ type
     function ClassRef: TVerInfoRecClass; override;
       {Returns reference to the type of this class (used to create child
       instances)}
-    function ReadHeader(const Reader: TVerInfoBinIO;
-      out RecSize, ValueSize, DataType: Word; out KeyName: string): Integer;
-      override;
+    function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+      DataType: Word; out KeyName: string): Integer; override;
       {Reads the common header fields, and any padding characters, from any
       version info structure. Returns number of bytes read}
-    function WriteHeader(const Writer: TVerInfoBinIO;
-      out RecSizePos: LongInt): Integer; override;
+    function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
+      Integer; override;
       {Writes the common header fields, and any padding characters, from any
       version info structure. The position where the record size is written is
       passed back in RecSizePos (the actual value is written later once size
@@ -221,13 +219,12 @@ type
     function ClassRef: TVerInfoRecClass; override;
       {Returns reference to the type of this class (used to create child
       instances)}
-    function ReadHeader(const Reader: TVerInfoBinIO;
-      out RecSize, ValueSize, DataType: Word; out KeyName: string): Integer;
-      override;
+    function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+      DataType: Word; out KeyName: string): Integer; override;
       {Reads the common header fields, and any padding characters, from any
       version info structure. Returns number of bytes read}
-    function WriteHeader(const Writer: TVerInfoBinIO;
-      out RecSizePos: LongInt): Integer; override;
+    function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
+      Integer; override;
       {Writes the common header fields, and any padding characters, from any
       version info structure. The position where the record size is written is
       passed back in RecSizePos (the actual value is written later once size
@@ -387,10 +384,10 @@ procedure TVerInfoRec.ReadFromStream(const Stream: IStream);
   {Reads a version info record structure, along with any child structures, from
   given stream}
 var
-  Reader: TVerInfoBinIO;  // reader used to do actual reading from stream
+  Reader: TStream;  // Adapts IStream as TStream
 begin
   // Use a reader object to read from stream
-  Reader := TVerInfoBinIO.Create(Stream);
+  Reader := TOleStream.Create(Stream);
   try
     // Get object to read itself using reader
     ReadObject(Reader);
@@ -399,7 +396,7 @@ begin
   end;
 end;
 
-function TVerInfoRec.ReadObject(const Reader: TVerInfoBinIO): Integer;
+function TVerInfoRec.ReadObject(const Reader: TStream): Integer;
   {Reads the version information record object using the given reader and
   returns the number of bytes read}
 var
@@ -416,13 +413,13 @@ var
   ChildrenBytesRead: Integer;   // number of bytes read from child data
 begin
   // Check there's something to read
-  if Reader.GetSize = 0 then
+  if Reader.Size = 0 then
     raise EVerInfoRec.Create(sNoVerInfo);
   try
     // Clear the existing contents
     Clear;
     // Record position of start of record in stream
-    StartPos := Reader.GetPosition;
+    StartPos := Reader.Position;
     // Read header: i.e. record size, value length, data type  & key name
     HeaderSize := ReadHeader(Reader, wLength, wValueLength, fDataType, fName);
     // Calculate size of value (adjust for WChars if data type = 1)
@@ -522,7 +519,7 @@ begin
   end;
 end;
 
-function TVerInfoRec.ReadPadding(const Reader: TVerInfoBinIO;
+function TVerInfoRec.ReadPadding(const Reader: TStream;
   const BytesRead: Integer): Integer;
   {Reads any "padding" bytes necessary to round BytesRead up to a DWORD
   boundary. Returns the number of bytes read}
@@ -564,7 +561,7 @@ begin
   fList.Delete(Index);
 end;
 
-function TVerInfoRec.WriteObject(const Writer: TVerInfoBinIO): Integer;
+function TVerInfoRec.WriteObject(const Writer: TStream): Integer;
   {Writes the version information record object's binary data using the given
   writer and returns the number of bytes written}
 var
@@ -602,7 +599,7 @@ begin
   Writer.Seek(0, STREAM_SEEK_END);
 end;
 
-function TVerInfoRec.WritePadding(const Writer: TVerInfoBinIO;
+function TVerInfoRec.WritePadding(const Writer: TStream;
   const BytesWritten: Integer): Integer;
   {Writes sufficent zero bytes to using given writer to pad given number of
   bytes written to a DWORD boundary. Returns number of bytes written}
@@ -623,10 +620,10 @@ procedure TVerInfoRec.WriteToStream(const Stream: IStream);
   {Writes encapsulated ver info record structure, along with any child record
   structures, to given stream}
 var
-  Writer: TVerInfoBinIO;  // writer object used to write to stream
+  Writer: TStream;  // Adapts IStream as TStream
 begin
   // We use a writer object to perform actual writing to stream
-  Writer := TVerInfoBinIO.Create(Stream);
+  Writer := TOleStream.Create(Stream);
   try
     // Get object to write itself using writer object
     WriteObject(Writer);
@@ -643,8 +640,8 @@ begin
   Result := TVerInfoRecA;
 end;
 
-function TVerInfoRecA.ReadHeader(const Reader: TVerInfoBinIO; out RecSize,
-  ValueSize, DataType: Word; out KeyName: string): Integer;
+function TVerInfoRecA.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+  DataType: Word; out KeyName: string): Integer;
   {Reads the common header fields, and any padding characters, from any version
   info structure. Returns number of bytes read}
 var
@@ -693,7 +690,7 @@ begin
   Result := UnicodeString(Value);
 end;
 
-function TVerInfoRecA.WriteHeader(const Writer: TVerInfoBinIO;
+function TVerInfoRecA.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
   {Writes the common header fields, and any padding characters, from any version
   info structure. The position where the record size is written is passed back
@@ -706,7 +703,7 @@ var
 begin
   // Don't know record size yet - mark place & write dummy value to come back to
   RecSize := 0;                                       // dummy record size value
-  RecSizePos := Writer.GetPosition;              // gets current stream position
+  RecSizePos := Writer.Position;                 // gets current stream position
   Writer.WriteBuffer(RecSize, SizeOf(Word));               // writes dummy value
   // Write size of value data
   ValueSize := GetValueSize;
@@ -730,8 +727,8 @@ begin
   Result := TVerInfoRecW;
 end;
 
-function TVerInfoRecW.ReadHeader(const Reader: TVerInfoBinIO; out RecSize,
-  ValueSize, DataType: Word; out KeyName: string): Integer;
+function TVerInfoRecW.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+  DataType: Word; out KeyName: string): Integer;
   {Reads the common header fields, and any padding characters, from any version
   info structure. Returns number of bytes read}
 var
@@ -778,7 +775,7 @@ begin
   Result := Value;
 end;
 
-function TVerInfoRecW.WriteHeader(const Writer: TVerInfoBinIO;
+function TVerInfoRecW.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
   {Writes the common header fields, and any padding characters, from any version
   info structure. The position where the record size is written is passed back
@@ -794,7 +791,7 @@ var
 begin
   // Don't know record size yet - mark place & write dummy value to come back to
   RecSize := 0;                                       // dummy record size value
-  RecSizePos := Writer.GetPosition;              // gets current stream position
+  RecSizePos := Writer.Position;                 // gets current stream position
   Writer.WriteBuffer(RecSize, SizeOf(Word));               // writes dummy value
   // Write size of value data
   if DataType = 0 then
