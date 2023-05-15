@@ -5,10 +5,10 @@
  *
  * Copyright (C) 2002-2023, Peter Johnson (https://gravatar.com/delphidabbler).
  *
- * Classes that encapsulate general version information records and expose
- * properties for the key record elements. They can also read and write their
- * data from and to a stream. There are classes for both 16 and 32 bit version
- * information records.
+ * Classes that encapsulate general version information variable length records.
+ * They expose properties for the key record elements and can also read and
+ * write their data from and to a stream. There are classes for both 16 and 32
+ * bit versions of the record format.
 }
 
 unit UVerInfoRec;
@@ -37,215 +37,275 @@ uses
 
 type
 
-  {
-  TVerInfoRecClass:
-    Class reference to TVerInfoRec and descendant classes.
-  }
+  ///  <summary>Class reference to <c>TVerInfoRec</c> and descendent classes.
+  ///  </summary>
   TVerInfoRecClass = class of TVerInfoRec;
 
-  {
-  TVersInfoRec:
-    Abstract base class for 16 and 32 bit version information record classes.
-    Version information records are represented in binary format as a heirachy
-    of variable length records. The structure of 16 and 32 bit version
-    information records varies slightly, but has the following general
-    structure:
-
-    record
-      wLength       // length of structure including any children (Word)
-      wValueLength  // length of value member (0 if no value) (Word)
-                    //   may be inconsistent for wide string types (i.e. it
-                    //   may be either number of wide chars in string (+ #0#0)
-                    //   or may be size of string in bytes - so don't rely on
-                    //   this value when reading in wide string values)
-      wType         // 32 bit records only:
-                    //   type of value (1=>wide string, 0=>binary) (Word)
-      szKey         // identifies record type
-                    //  (32 bit records: zero terminated WChar array)
-                    //  (16 bit records: zero terminated AnsiChar array)
-      padding1      // array of bytes padding structure to DWORD boundary
-      value         // optional value (type/structure depends on record type)
-      padding2      // array of bytes padding structure to DWORD boundary
-      children      // optional list of child version info structures
-    end;
-
-    This class encapsulates a general version information record and exposes
-    properties for the key record elements. It can also read and write its data
-    from and to a stream. It provides the functionality common to both 16 and 32
-    bit versions of the records and declares abstract methods that specialised
-    descendants override to account for the differences between versions.
-
-    Inheritance: TVerInfoRec -> [TObject]
-  }
+  ///  <summary>Abstract base class for classes that encapsulate 16 and 32 bit
+  ///  version information records.</summary>
+  ///  <remarks>
+  ///  <para>Version information records are represented in binary format as a
+  ///  heirachy of variable length records. The structure of 16 and 32 bit
+  ///  version information records varies slightly, but has records of the
+  ///  following general structure:</para>
+  ///  <para><c>wLength</c>: length of structure including any children (Word).
+  ///  </para>
+  ///  <para><c>wValueLength</c>: length of value member (0 if no value)
+  ///  (Word). May be inconsistent for wide string types (i.e. it may be
+  ///  either number of wide chars in string (+ #0#0) or may be size of string
+  ///  in bytes - so don't rely on this value when reading in wide string
+  ///  values).</para>
+  ///  <para><c>wType</c>: 32 bit records only: type of value (1=>wide string,
+  ///  0=>binary) (Word)</para>
+  ///  <para><c>szKey</c>: identifies record type - 32 bit records have a zero
+  ///  terminated WChar array while 16 bit records have a zero terminated
+  ///  AnsiChar array.</para>
+  ///  <para><c>padding1</c>: array of bytes padding structure to DWORD
+  ///  boundary.</para>
+  ///  <para><c>value</c>: optional value (type/structure depends on record
+  ///  type).</para>
+  ///  <para><c>padding2</c>: array of bytes padding structure to DWORD
+  ///  boundary.</para>
+  ///  <para><c>children</c>: optional list of child version info structures.
+  ///  </para>
+  ///  <para>This class encapsulates a general version information record and
+  ///  exposes properties for the key record elements. It can also read and
+  ///  write its data from and to a stream. It provides the functionality common
+  ///  to both 16 and 32 bit versions of the records and declares abstract
+  ///  methods that specialised descendants override to account for the
+  ///  differences between versions.</para>
+  ///  </remarks>
   TVerInfoRec = class(TObject)
-  private // properties
+  private
+    ///  <summary>Value of <c>Name</c> property.</summary>
     fName: string;
+    ///  <summary>Value of <c>DataType</c> property.</summary>
     fDataType: Word;
+    ///  <summary>Read access method for <c>Children</c> property.</summary>
     function GetChild(I: Integer): TVerInfoRec;
+    ///  <summary>Read access method for <c>NumChildren</c> property.</summary>
     function GetNumChildren: Integer;
+    ///  <summary>Read access method for <c>Value</c> property.</summary>
     function GetValue: Pointer;
   private
+    ///  <summary>List of child record structures.</summary>
     fList: TList;
-      {Stores list of child record structures}
+    ///  <summary>Buffer that stores the value associated with this record.
+    ///  </summary>
     fValueBuffer: PByte;
-      {Buffer that stores the value associated with this record}
+    ///  <summary>Size of value buffer.</summary>
     fValueBufferSize: WORD;
-      {Size of the value buffer}
+    ///  <summary>Reference to version info record that is the parent of this
+    ///  one: nil if this is the root record.</summary>
     fParent: TVerInfoRec;
-      {Pointer to version info record that is the parent of this one: nil if
-      this is the root record}
   protected
+    ///  <summary>Returns reference to the type of class this is. Sub classes
+    ///  return their own classes when overriding.</summary>
+    ///  <remarks>Used to create child instances of the correct type.</remarks>
     function ClassRef: TVerInfoRecClass; virtual; abstract;
-      {Returns reference to the type of class this is (used to create child
-      instances). Sub classes return their own classes when overriding}
+    ///  <summary>Sets data type to given value.</summary>
+    ///  <remarks>For use in descendent classes.</remarks>
     procedure SetDataType(AValue: Word);
-      {Sets data type to given value: for use in descendant classes}
+    ///  <summary>Deletes the given child from the list of child objects.
+    ///  </summary>
     procedure UnLink(const Child: TVerInfoRec);
-      {Deletes the given child from the list of child objects}
+    ///  <summary>Allocates a buffer of given size to hold a value. Deallocates
+    ///  any existing buffer first.</summary>
     procedure AllocateValueBuffer(const Size: Integer);
-      {Allocates a buffer of given size to hold a value. Deallocates any
-      existing buffer first}
+    ///  <summary>Deallocates any existing value buffer.</summary>
     procedure DeallocateValueBuffer;
-      {Deallocates any existing value buffer}
+    ///  <summary>Reads the version information record object using the given
+    ///  reader stream and returns the number of bytes read.</summary>
     function ReadObject(const Reader: TStream): Integer;
-      {Reads the version information record object using the given reader and
-      returns the number of bytes read}
+    ///  <summary>Writes the version information record object's binary data
+    ///  using the given writer stream and returns the number of bytes written.
+    ///  </summary>
     function WriteObject(const Writer: TStream): Integer;
-      {Writes the version information record object's binary data using the
-      given writer and returns the number of bytes written}
+    ///  <summary>Reads any 'padding' bytes necessary to round BytesRead up to a
+    ///  <c>DWORD</c> boundary. Returns the number of bytes read.</summary>
     function ReadPadding(const Reader: TStream; const BytesRead: Integer):
       Integer;
-      {Reads any "padding" bytes necessary to round BytesRead up to a DWORD
-      boundary. Returns the number of bytes read}
+    ///  <summary>Writes sufficent zero bytes to pad the given number of bytes
+    ///  to a <c>DWORD</c> boundary. Returns number of bytes written.</summary>
     function WritePadding(const Writer: TStream; const BytesWritten: Integer):
       Integer;
-      {Writes sufficent zero bytes to using given writer to pad given number of
-      bytes written to a DWORD boundary. Returns number of bytes written}
+    ///  <summary>Reads the common header fields, and any padding characters,
+    ///  from any version information structure. Returns number of bytes read.
+    ///  </summary>
+    ///  <remarks>Descendants must implement since the header format varies
+    ///  between 16 and 32 bit version information.</remarks>
     function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
       DataType: Word; out KeyName: string): Integer; virtual; abstract;
-      {Reads the common header fields, and any padding characters, from any
-      version info structure. Returns number of bytes read. Descendants must
-      implement since header format varies between 16 and 32 bit}
+    ///  <summary>Writes the common header fields, and any padding characters,
+    ///  from any version info structure. The position where the record size is
+    ///  written is passed back in <c>RecSizePos</c>. Returns number of bytes
+    ///  written.</summary>
+    ///  <remarks>
+    ///  <para><c>RecSizePos</c> is used to return to the correct position to
+    ///  write the record size once it has been calculated.</para>
+    ///  <para>Descendants must implement since the header format varies between
+    ///  16 and 32 bit version information.</para>
+    ///  </remarks>
     function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
       Integer; virtual; abstract;
-      {Writes the common header fields, and any padding characters, from any
-      version info structure. The position where the record size is written is
-      passed back in RecSizePos (the actual value is written later once size
-      of record is known). Returns number of bytes written. Descendants must
-      implement since header format varies between 16 and 32 bit}
+    ///  <summary>Converts the text value pointed to by <c>ValuePtr</c> to a
+    ///  string.</summary>
+    ///  <remarks><c>ValuePtr</c> will point to an ANSI string for 16 bit format
+    ///  and WideString for 32 bit format, so descendants must implement.
+    ///  </remarks>
     function ValuePtrToStr(const ValuePtr: Pointer): string; virtual; abstract;
-      {Converts the text value pointed to by ValuePtr to string. ValuePtr will
-      point to an ANSI string for 16 bit format and WideString for 32 bit
-      format, so descendants must implement}
   public
+    ///  <summary>Object constructor. Creates a top level version information
+    ///  i.e. one with no parent.</summary>
     constructor Create; overload;
-      {Class constructor: create version info record with no parent (i.e. top
-      level record)}
+
+    ///  <summary>Object constructor. Creates a version information record with
+    ///  a given parent record.</summary>
+    ///  <param name="Parent"><c>TVerInfoRec</c> [in] Parent record.</param>
     constructor Create(const Parent: TVerInfoRec); overload;
-      {Class constructor: creates version info record that has given parent}
+
+    ///  <summary>Object destructor. Frees any allocated buffer, all child
+    ///  objects and owned object.</summary>
     destructor Destroy; override;
-      {Class destructor: frees any allocated buffer, all child objects and
-      owned list object}
+
+    ///  <summary>Clears record, destroying all data and child records.
+    ///  </summary>
     procedure Clear;
-      {Clears record, destroying all data and child records}
+
+    ///  <summary>Returns size of value buffer.</summary>
     function GetValueSize: Integer;
-      {Returns size of value buffer}
+
+    ///  <summary>Sets value buffer to a binary value. Sets data type to
+    ///  <c>0</c></summary>
+    ///  <param name="Buffer">Untyped [in] Reference to data to be copied to
+    ///  value buffer.</param>
+    ///  <param name="Size"><c>Integer</c> [in] Size of data in <c>Buffer</c>.
+    ///  </param>
     procedure SetBinaryValue(const Buffer; const Size: Integer);
-      {Sets value buffer to given binary value - also sets data type to 0}
+
+    ///  <summary>Sets value buffer to the content of a string.</summary>
+    ///  <param name="Str"><c>string</c> [in] String to be copied to value
+    ///  buffer.</param>
+    ///  <remarks>Descendants must copy string in required ANSI or Wide format
+    ///  and set data type to 0 for 16 bit (ANSI) strings or 1 for 32 bit (wide)
+    ///  strings.</remarks>
     procedure SetStringValue(const Str: string); virtual; abstract;
-      {Sets value buffer to given string: descendants must set data type to 0 in
-      16 bit (ansi strings) and 1 for 32 bit (wide strings)}
+
+    ///  <summary>Gets the data from the value buffer as a string and returns
+    ///  it.</summary>
+    ///  <returns><c>string</c> String from value buffer.</returns>
+    ///  <remarks>Internally this will be stored as either an ANSI string or a
+    ///  Wide string.</remarks>
     function GetStringValue: string;
-      {Gets the data from the value buffer as a string and returns it as a
-      string. Internally this will be stored as either a ansi string or a wide
-      string}
+
+    ///  <summary>Reads a version information record structure, along with any
+    ///  child structures, from a stream.</summary>
+    ///  <param name="Stream"><c>IStream</c> [in] Stream to be read from.
+    ///  </param>
     procedure ReadFromStream(const Stream: IStream);
-      {Reads a version info record structure, along with any child structures,
-      from given stream}
+
+    ///  <summary>Writes the encapsulated version information record structure,
+    ///  along with any child structures, to a stream.</summary>
+    ///  <param name="Stream"><c>IStream</c> [in] Stream to be written to.
+    ///  </param>
     procedure WriteToStream(const Stream: IStream);
-      {Writes encapsulated ver info record structure, along with any child
-      record structures, to given stream}
+
+    ///  <summary>Array of child version information structures parented by this
+    ///  object.</summary>
+    ///  <param name="I"><c>Integer</c> [in] Index into array.</param>
+    ///  <returns><c>TVerInfoRec</c>. Child record at index <c>I</c>.</returns>
     property Children[I: Integer]: TVerInfoRec read GetChild;
-      {List of child version info record structures}
+
+    ///  <summary>Number of child structures parented by this object.</summary>
+    ///  <returns><c>Integer</c> Number of child structure.</returns>
     property NumChildren: Integer read GetNumChildren;
-      {Number of Children}
+
+    ///  <summary>Name of this record.</summary>
+    ///  <returns><c>string</c>. The name.</returns>
     property Name: string read fName write fName;
-      {Name of this record}
+
+    ///  <summary>Pointer to any value associated with this object.</summary>
+    ///  <returns><c>Pointer</c>. Value pointer.</returns>
     property Value: Pointer read GetValue;
-      {Pointer to value associated with this record}
+
+    ///  <summary>Code indicating type of data associated with this record.
+    ///  </summary>
+    ///  <returns><c>Word</c>. 0 for ANSI string or binary data, 1 for Wide
+    ///  string.</returns>
     property DataType: Word read fDataType;
-      {Type of data associated with this record}
   end;
 
-  {
-  TVerInfoRecA:
-    Implements a generalised ANSI version information record. Simply provides
-    implementations for abstract methods of base class.
-
-    Inheritance: TVerInfoRecA -> TVerInfoRec -> [TObject]
-  }
+  ///  <summary>Implements a generalised 16 bit version information record.
+  ///  </summary>
+  ///  <remarks>Simply provides implementations for abstract methods of the base
+  ///  class.</remarks>
   TVerInfoRecA = class(TVerInfoRec)
   protected
+    ///  <summary>Returns reference to this class type.</summary>
+    ///  <remarks>Used to create child instances of the correct type.</remarks>
     function ClassRef: TVerInfoRecClass; override;
-      {Returns reference to the type of this class (used to create child
-      instances)}
+    ///  <summary>Reads the common header fields, and any padding characters,
+    ///  from a 16 bit version information structure. Returns number of bytes
+    ///  read.</summary>
     function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
       DataType: Word; out KeyName: string): Integer; override;
-      {Reads the common header fields, and any padding characters, from any
-      version info structure. Returns number of bytes read}
+    ///  <summary>Writes the common header fields, and any padding characters,
+    ///  from a 16 bit version info structure. The position where the record
+    ///  size is written is passed back in <c>RecSizePos</c>. Returns number of
+    ///  bytes written.</summary>
+    ///  <remarks><c>RecSizePos</c> is used to return to the correct position to
+    ///  write the record size once it has been calculated.</remarks>
     function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
       Integer; override;
-      {Writes the common header fields, and any padding characters, from any
-      version info structure. The position where the record size is written is
-      passed back in RecSizePos (the actual value is written later once size
-      of record is known). Returns number of bytes written}
+    ///  <summary>Converts the text value pointed to by <c>ValuePtr</c> to an
+    ///  ANSI string.</summary>
     function ValuePtrToStr(const ValuePtr: Pointer): string; override;
-      {Converts the text value pointed to by ValuePtr to string. ValuePtr points
-      to an ANSI string}
   public
+    ///  <summary>Sets value buffer to the content of an ANSI string.</summary>
+    ///  <param name="Str"><c>string</c> [in] String to be copied to value
+    ///  buffer.</param>
     procedure SetStringValue(const Str: string); override;
-      {Sets value buffer to given string - also sets data type to 0}
   end;
 
-  {
-  TVerInfoRecW:
-    Implements a generalised Unicode version information record. Simply provides
-    implementations for abstract methods of base class.
-
-    Inheritance: TVerInfoRecW -> TVerInfoRec -> [TObject]
-  }
+  ///  <summary>Implements a generalised 32 bit version information record.
+  ///  </summary>
+  ///  <remarks>Simply provides implementations for abstract methods of the base
+  ///  class.</remarks>
   TVerInfoRecW = class(TVerInfoRec)
   protected
+    ///  <summary>Returns reference to this class type.</summary>
+    ///  <remarks>Used to create child instances of the correct type.</remarks>
     function ClassRef: TVerInfoRecClass; override;
-      {Returns reference to the type of this class (used to create child
-      instances)}
+    ///  <summary>Reads the common header fields, and any padding characters,
+    ///  from a 32 bit version information structure. Returns number of bytes
+    ///  read.</summary>
     function ReadHeader(const Reader: TStream; out RecSize, ValueSize,
       DataType: Word; out KeyName: string): Integer; override;
-      {Reads the common header fields, and any padding characters, from any
-      version info structure. Returns number of bytes read}
+    ///  <summary>Writes the common header fields, and any padding characters,
+    ///  from a 32 bit version info structure. The position where the record
+    ///  size is written is passed back in <c>RecSizePos</c>. Returns number of
+    ///  bytes written.</summary>
+    ///  <remarks><c>RecSizePos</c> is used to return to the correct position to
+    ///  write the record size once it has been calculated.</remarks>
     function WriteHeader(const Writer: TStream; out RecSizePos: LongInt):
       Integer; override;
-      {Writes the common header fields, and any padding characters, from any
-      version info structure. The position where the record size is written is
-      passed back in RecSizePos (the actual value is written later once size
-      of record is known). Returns number of bytes written}
+    ///  <summary>Converts the text value pointed to by <c>ValuePtr</c> to a
+    ///  Wide string.</summary>
     function ValuePtrToStr(const ValuePtr: Pointer): string; override;
-      {Converts the text value pointed to by ValuePtr to string. ValuePtr points
-      to a wide string}
   public
+    ///  <summary>Sets value buffer to the content of a Wide string.</summary>
+    ///  <param name="Str"><c>string</c> [in] String to be copied to value
+    ///  buffer.</param>
     procedure SetStringValue(const Str: string); override;
-      {Sets value buffer to given string - also sets data type to 1}
   end;
 
-  {
-  EVerInfoRec:
-    Class of exception raised by TVersionInfoRec16 objects.
-
-    Inheritance: EVerInfoRec -> [Exception] -> [TObject]
-  }
+  ///  <summary>Class of exception raised by TVersionInfoRec instances.
+  ///  </summary>
   EVerInfoRec = class(Exception);
 
+
 implementation
+
 
 resourcestring
   // Error messages
@@ -254,9 +314,9 @@ resourcestring
 
 { Support routine }
 
+///  <summary>Returns number of bytes of padding required to increase
+///  <c>ANum</c> to a multiple of <c>PadTo</c>.</summary>
 function PaddingRequired(const ANum, PadTo: Integer): Integer;
-  {Returns number of bytes padding required to increase ANum to a multiple of
-  PadTo}
 begin
   if ANum mod PadTo = 0 then
     Result := 0
@@ -267,8 +327,6 @@ end;
 { TVerInfoRec }
 
 procedure TVerInfoRec.AllocateValueBuffer(const Size: Integer);
-  {Allocates a buffer of given size to hold a value. Deallocates any existing
-  buffer first}
 begin
   DeallocateValueBuffer;
   fValueBufferSize := Size;
@@ -276,7 +334,6 @@ begin
 end;
 
 procedure TVerInfoRec.Clear;
-  {Clears record, destroying all data and child records}
 var
   I: Integer; // loops thru all child objects
 begin
@@ -291,15 +348,12 @@ begin
 end;
 
 constructor TVerInfoRec.Create;
-  {Class constructor: create version info record with no parent (i.e. top level
-  record)}
 begin
   // Simply create with nil owner
   Create(nil);
 end;
 
 constructor TVerInfoRec.Create(const Parent: TVerInfoRec);
-  {Class constructor: creates version info record that has given parent}
 begin
   inherited Create;
   // Create list to store child records
@@ -313,7 +367,6 @@ begin
 end;
 
 procedure TVerInfoRec.DeallocateValueBuffer;
-  {Deallocates any existing value buffer}
 begin
   if fValueBufferSize > 0 then
   begin
@@ -323,8 +376,6 @@ begin
 end;
 
 destructor TVerInfoRec.Destroy;
-  {Class destructor: frees any allocated buffer, all child objects and owned
-  list object}
 begin
   // Get rid of owned objects
   Clear;
@@ -337,20 +388,16 @@ begin
 end;
 
 function TVerInfoRec.GetChild(I: Integer): TVerInfoRec;
-  {Read access method for Children property}
 begin
   Result := TVerInfoRec(fList[I]);
 end;
 
 function TVerInfoRec.GetNumChildren: Integer;
-  {Read access method for NumChildren property}
 begin
   Result := fList.Count;
 end;
 
 function TVerInfoRec.GetStringValue: string;
-  {Gets the data from the value buffer as a string and returns it as a string.
-  Internally this will be stored as either a ansi string or a wide string}
 var
   ValuePtr: Pointer;  // points to buffer containing string value
 begin
@@ -364,7 +411,6 @@ begin
 end;
 
 function TVerInfoRec.GetValue: Pointer;
-  {Read access method for Value property}
 begin
   if fValueBufferSize = 0 then
     // There is no value, return nil
@@ -375,14 +421,11 @@ begin
 end;
 
 function TVerInfoRec.GetValueSize: Integer;
-  {Returns size of value buffer}
 begin
   Result := fValueBufferSize;
 end;
 
 procedure TVerInfoRec.ReadFromStream(const Stream: IStream);
-  {Reads a version info record structure, along with any child structures, from
-  given stream}
 var
   Reader: TStream;  // Adapts IStream as TStream
 begin
@@ -397,8 +440,6 @@ begin
 end;
 
 function TVerInfoRec.ReadObject(const Reader: TStream): Integer;
-  {Reads the version information record object using the given reader and
-  returns the number of bytes read}
 var
   wLength, wValueLength: WORD;  // length of structure and Value member
   Child: TVerInfoRec;           // reference to child record objects
@@ -521,8 +562,6 @@ end;
 
 function TVerInfoRec.ReadPadding(const Reader: TStream;
   const BytesRead: Integer): Integer;
-  {Reads any "padding" bytes necessary to round BytesRead up to a DWORD
-  boundary. Returns the number of bytes read}
 var
   PadBuf: array[0..SizeOf(DWORD)-1] of Byte;    // buffer to read padding into
 begin
@@ -534,7 +573,6 @@ begin
 end;
 
 procedure TVerInfoRec.SetBinaryValue(const Buffer; const Size: Integer);
-  {Sets value buffer to given binary value - also sets data type to 0}
 begin
   // Allocate value buffer of required size and copy the given data buffer to it
   AllocateValueBuffer(Size);
@@ -544,13 +582,11 @@ begin
 end;
 
 procedure TVerInfoRec.SetDataType(AValue: Word);
-  {Sets data type to given value: for use in descendant classes}
 begin
   fDataType := AValue;
 end;
 
 procedure TVerInfoRec.UnLink(const Child: TVerInfoRec);
-  {Deletes the given child from the list of child objects}
 var
   Index: Integer; // index of child in list of children
 begin
@@ -562,8 +598,6 @@ begin
 end;
 
 function TVerInfoRec.WriteObject(const Writer: TStream): Integer;
-  {Writes the version information record object's binary data using the given
-  writer and returns the number of bytes written}
 var
   RecSize: WORD;            // size of header section of record
   I: Integer;               // loops thru children
@@ -601,8 +635,6 @@ end;
 
 function TVerInfoRec.WritePadding(const Writer: TStream;
   const BytesWritten: Integer): Integer;
-  {Writes sufficent zero bytes to using given writer to pad given number of
-  bytes written to a DWORD boundary. Returns number of bytes written}
 var
   PadBuf: array[0..SizeOf(DWORD)-1] of Byte;    // buffer holding padding bytes
 begin
@@ -617,8 +649,6 @@ begin
 end;
 
 procedure TVerInfoRec.WriteToStream(const Stream: IStream);
-  {Writes encapsulated ver info record structure, along with any child record
-  structures, to given stream}
 var
   Writer: TStream;  // Adapts IStream as TStream
 begin
@@ -635,15 +665,12 @@ end;
 { TVerInfoRecA }
 
 function TVerInfoRecA.ClassRef: TVerInfoRecClass;
-  {Returns reference to the type of this class (used to create child instances)}
 begin
   Result := TVerInfoRecA;
 end;
 
 function TVerInfoRecA.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
   DataType: Word; out KeyName: string): Integer;
-  {Reads the common header fields, and any padding characters, from any version
-  info structure. Returns number of bytes read}
 var
   KeyChar: AnsiChar;  // character in key name
 begin
@@ -665,7 +692,6 @@ begin
 end;
 
 procedure TVerInfoRecA.SetStringValue(const Str: string);
-  {Sets value buffer to given string - also sets data type to 0}
 var
   BufLen: Integer;  // required value buffer size
   StrA: AnsiString; // ANSI string conversion of Str
@@ -681,8 +707,6 @@ begin
 end;
 
 function TVerInfoRecA.ValuePtrToStr(const ValuePtr: Pointer): string;
-  {Converts the text value pointed to by ValuePtr to string. ValuePtr points to
-  an ANSI string}
 var
   Value: AnsiString;
 begin
@@ -692,10 +716,6 @@ end;
 
 function TVerInfoRecA.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
-  {Writes the common header fields, and any padding characters, from any version
-  info structure. The position where the record size is written is passed back
-  in RecSizePos (the actual value is written later once size of record is
-  known). Returns number of bytes written}
 var
   RecSize: Word;    // dummy value for record: written as a placeholder
   ValueSize: Word;  // size of value buffer as a Word value
@@ -722,15 +742,12 @@ end;
 { TVerInfoRecW }
 
 function TVerInfoRecW.ClassRef: TVerInfoRecClass;
-  {Returns reference to the type of this class (used to create child instances)}
 begin
   Result := TVerInfoRecW;
 end;
 
 function TVerInfoRecW.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
   DataType: Word; out KeyName: string): Integer;
-  {Reads the common header fields, and any padding characters, from any version
-  info structure. Returns number of bytes read}
 var
   KeyChar: WideChar;  // character in key name
 begin
@@ -752,7 +769,6 @@ begin
 end;
 
 procedure TVerInfoRecW.SetStringValue(const Str: string);
-  {Sets value buffer to given string - also sets data type to 1}
 var
   BufLen: Integer;  // required value buffer size
 begin
@@ -766,8 +782,6 @@ begin
 end;
 
 function TVerInfoRecW.ValuePtrToStr(const ValuePtr: Pointer): string;
-  {Converts the text value pointed to by ValuePtr to string. ValuePtr points to
-  a wide string}
 var
   Value: UnicodeString;
 begin
@@ -777,10 +791,6 @@ end;
 
 function TVerInfoRecW.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
-  {Writes the common header fields, and any padding characters, from any version
-  info structure. The position where the record size is written is passed back
-  in RecSizePos (the actual value is written later once size of record is
-  known). Returns number of bytes written}
 var
   RecSize: Word;            // dummy record size: this is actually written later
   ValueSize: Word;          // size of value data

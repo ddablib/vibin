@@ -3,10 +3,10 @@
  * v. 2.0. If a copy of the MPL was not distributed with this file, You can
  * obtain one at https://mozilla.org/MPL/2.0/
  *
- * Copyright (C) 2002-2022, Peter Johnson (https://gravatar.com/delphidabbler).
+ * Copyright (C) 2002-2023, Peter Johnson (https://gravatar.com/delphidabbler).
  *
- * Class that encapsulates the binary representation of version information and
- * exposes properties and methods that permit this data to be read and modified.
+ * Class that encapsulates a binary version information resource and exposes
+ * methods that permit the resource to be read and modified.
 }
 
 unit UVerInfoData;
@@ -33,300 +33,517 @@ uses
 
 type
 
-  {
-  TVerResType:
-    Enumeration that indicates either a 16 or 32 bit version information
-    resource.
-  }
+  ///  <summary>Enumeration that specifies the type of a version information
+  ///  resource.</summary>
+  ///  <remarks>
+  ///  <para><c>vrtAnsi</c>: 16 bit resource with ANSI strings.</para>
+  ///  <para><c>vrtUnicode</c>: 32 bit resource with Unicode strings.</para>
+  ///  </remarks>
   TVerResType =(
-    vrtAnsi,       // Ansi resource type
-    vrtUnicode     // Unicode resource type
+    vrtAnsi,
+    vrtUnicode
   );
 
-  {
-  TVerInfoData:
-    Class that encapsulates the binary representation of version information and
-    exposes properties and methods that permit this data to be read and
-    modified.
-
-    The version information is maintained as a tree of variable length records,
-    each record being interpreted according to the key associated with the
-    record. TVerInfoRec objects are used to encapsulate the generic version
-    info records and TVerInfoData interprets their meaning. The tree of
-    records has a VS_VERSION_INFO record at its root. The heirachy of records is
-    shown below:
-
-      VS_VERSION_INFO = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // size of TVSFixedFileInfo record (Word)
-        wType         // 0 - binary (Word: 32 bit records only)
-        szKey         // 'VS_VERSION_INFO' (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        value         // fixed file information (TVSFixedFileInfo)
-        pad2          // padding to DWORD boundary
-        children      // VarFileInfo and StringFileInfo records
-      end;
-
-      VarFileInfo = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // 0 - there is no value (Word)
-        wType         // 0 - binary (Word: 32 bit records only)
-        szKey         // 'VarFileInfo' (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        children      // array of Var records (usually just one)
-      end;
-
-      Var = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // length of list of translation ids (Word)
-        wType         // 0 - binary (Word: 32 bit records only)
-        szKey         // 'Translation' (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        value         // list of translation ids (array of DWORD)
-      end;
-
-      StringFileInfo = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // 0 - no value (Word)
-        wType         // 0 - binary (Word: 32 bit records only)
-        szKey         // 'StringFileInfo' (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        children      // array of StringTable records
-      end;
-
-      StringTable = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // 0 - no value (Word)
-        wType         // 0 - binary (Word: 32 bit records only)
-        szKey         // translation code (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        children      // array of string records
-      end;
-
-      String = record
-        wLength       // length of structure inc children (Word)
-        wValueLength  // length of string value (Word)
-        wType         // 1 - text (Word: 32 bit records only)
-        szKey         // name of string (WideStr: 32 bit, AnsiStr: 16 bit)
-        pad1          // padding to DWORD boundary
-        value         // string's value
-      end;
-
-    Inheritance: TVerInfoData -> [TObject]
-  }
+  ///  <summary>Class that encapsulates the binary representation of version
+  ///  information and exposes properties and methods that permit this data to
+  ///  be read and modified.</summary>
+  ///  <remarks>The version information is maintained as a tree of variable
+  ///  length records, each record being interpreted according to a key
+  ///  associated with the record. <c>TVerInfoRec</c> objects are used to
+  ///  encapsulate the generic version information records while
+  ///  <c>TVerInfoData</c> interprets their meaning.</remarks>
   TVerInfoData = class(TObject)
   private
+    ///  <summary>Records the type of resource we're accessing (16 or 32 bit).
+    ///  </summary>
     fVerResType: TVerResType;
-      {Records whether we're accessing 16 or 32 bit resources}
+    ///  <summary>Reference to root version information record that acts as root
+    ///  of record tree and stores fixed file information.</summary>
     fVIRoot: TVerInfoRec;
-      {Reference to root ver info record that acts as root of record tree and
-      stores fixed file information}
+    ///  <summary>Returns class of version info record object to be created.
+    ///  </summary>
     function VerInfoRecClass: TVerInfoRecClass;
-      {Returns class of version info record object to be created}
+    ///  <summary>Raises a <c>EVerInfoData</c> exception formatted from given
+    ///  format string and arguments.</summary>
     procedure Error(const FmtStr: string; const Args: array of const);
-      {Raises a EVerInfoData exception formatted from given format string
-      and arguments}
+    ///  <summary>Finds the first child record of the given <c>root</c> record
+    ///  that has the given <c>Name</c> and returns a reference to it. If no
+    ///  such child record exists then <c>nil</c> is returned.</summary>
     function FindChildByName(const Root: TVerInfoRec;
       const Name: string): TVerInfoRec;
-      {Finds the first child record of the given 'root' record that has the
-      given 'name' (key) and returns a reference to it. If no such child record
-      exists then nil is returned}
+    ///  <summary>Examines the list of child nodes of version info record
+    ///  <c>Root</c> and returns the index in the list of the the child record
+    ///  with name <c>Name</c> or -1 if there is no such child record.</summary>
     function IndexOfChildByName(const Root: TVerInfoRec;
       const Name: string): Integer;
-      {Examines the list of child nodes of the given version info record and
-      returns the index in the list of the the child record with the given name,
-      or -1 if there is no such child record}
+    ///  <summary>Returns reference to the <c>VarFileInfo</c> record which must
+    ///  exist.</summary>
     function GetVarFileInfoRoot: TVerInfoRec;
-      {Returns reference to the 'VarFileInfo' record which must exist}
+    ///  <summary>Returns a reference to the version information record that
+    ///  stores information about all supported translations - i.e. the
+    ///  <c>Translation</c> record, which must exist.</summary>
     function GetTranslationRec: TVerInfoRec;
-      {Returns a reference to the ver info record that stores information about
-      all supported translations - i.e. the 'Translation' record. This record
-      must exist}
+    ///  <summary>Returns reference to the <c>StringFileInfo</c> record, which
+    ///  must exist.</summary>
     function GetStringFileInfoRoot: TVerInfoRec;
-      {Returns reference to the 'StringFileInfo' record which must exist}
+    ///  <summary>Returns reference to the string file information table at
+    ///  child index <c>TableIdx</c> in the <c>StringFileInfo</c> record. Raises
+    ///  an exception if <c>TableIdx</c> is out of range.</summary>
     function GetStringFileInfoTable(TableIdx: Integer): TVerInfoRec;
-      {Returns reference to the string file info table at the give index in
-      the list of tables. Raises exception if string file info is out of range}
+    ///  <summary>Returns a reference to the string file information record at
+    ///  index <c>StrIdx</c> in the string table at child index <c>TableIdx</c>
+    ///  in the <c>StringFileInfo</c> record. Raises exception if
+    ///  <c>TableIdx</c> or <c>StrIdx</c> are out of bounds.</summary>
     function GetStringFileInfoItem(TableIdx, StrIdx: Integer): TVerInfoRec;
-      {Returns a reference to the ver info record that stores information about
-      the string info at the given index in the given translations. Raises
-      exception if table or string index are out of bounds}
+    ///  <summary>Returns the number of translations in the version information
+    ///  record <c>TransRec</c>.</summary>
     function InternalGetTranslationCount(TransRec: TVerInfoRec): Integer;
-       {Returns the number of translations in the version information}
+    ///  <summary>Returns the translation code stored at index <c>TransIdx</c>
+    ///  in the translation list.</summary>
     function InternalGetTranslation(TransIdx: Integer): DWORD;
-      {Returns the translation code stored at index I in the list of
-      translations. Raises exception if the index is out of bounds}
+    ///  <summary>Sets the translation code of the translation at index
+    ///  <c>TransIdx</c> to <c>Value</c>.</summary>
     procedure InternalSetTranslation(TransIdx: Integer; Value: DWORD);
-      {Sets the translation at the given index to the given value. An exception
-      is raised if the index is out of bounds}
+    ///  <summary>Ensures that the compulsory version information data nodes are
+    ///  present.</summary>
     procedure EnsureRequiredNodes;
-      {Ensures that the compulsory version information data nodes are present}
-    function CreateNode(Owner: TVerInfoRec;
-      const Name: string): TVerInfoRec;
-      {Creates a new node (record) of required type (16 or 32 bit) with the
-      given name as a child of the given owner record}
+    ///  <summary>Creates a new child node (i.e. record) of <c>Owner</c>. The
+    ///  new node is created with the correct type (i.e. 16 or 32 bit) and is
+    ///  given name <c>Name</c>.</summary>
+    function CreateNode(Owner: TVerInfoRec; const Name: string): TVerInfoRec;
+    ///  <summary>Decodes translation code <c>Trans</c> into its constituent
+    ///  language ID and character set components and passes these out in the
+    ///  <c>Language</c> and <c>CharSet</c> parameters.</summary>
     class procedure DecodeTrans(const Trans: DWORD;
       out Language, CharSet: WORD);
-      {Decodes the translation encoded in Trans into its language and character
-      set components.}
+    ///  <summary>Decodes translation string <c>TransStr</c> into its
+    ///  constituent language ID and character set components and passes these
+    ///  out in the <c>Language</c> and <c>CharSet</c> parameters.</summary>
     class procedure DecodeTransStr(const TransStr: string;
       out Language, CharSet: WORD);
-      {Decodes the translation encoded in translation string TransStr into its
-      language and character set components}
+    ///  <summary>Updates the given translation code <c>OldTrans</c> with the
+    ///  either or both of language ID <c>Language</c> and <c>CharSet</c> codes
+    ///  and returns the revised translation code. If either of these codes are
+    ///  <c>$FFFF</c> they are ignored and not updated.</summary>
     class function EncodeTrans(const OldTrans: DWORD;
       const Language, CharSet: WORD): DWORD;
-      {Updates the given translation code OldTrans with the either or both of
-      the given language and character set codes. If either of these codes are
-      $FFFF they are ignored}
+    ///  <summary>Updates fixed file info structure <c>FFI</c> as necessary to
+    ///  ensure it has the correct version and signature fields.</summary>
+    ///  <remarks>The version field always represents v1.0 and the signature is
+    ///  always <c>$FEEF04BD</c>.</remarks>
     class procedure StampFFI(var FFI: TVSFixedFileInfo);
-      {Ensures that given fixed file info structure has correct version (1.0)
-      and signature}
   public
-    // General methods
+    ///  <summary>Object constructor: creates a new version information object
+    ///  its default state.</summary>
+    ///  <param name="VerResType"><c>TVerResType</c> [in] Indicates whether this
+    ///  is to be a 16 or 32 bit version information object.</param>
+    ///  <remarks>See the <c>Reset</c> method for a description of 'default
+    ///  state'</remarks>
     constructor Create(VerResType: TVerResType);
-      {Class constructor: creates a new, empty, version information object with
-      the required compulsory child nodes. VerResType indicates whether this is
-      16 or 32 bit version info}
+
+    ///  <summary>Object destructor.</summary>
     destructor Destroy; override;
-      {Class destructor: destroys root ver info record (which destroys all its
-      child records)}
+
+    // General methods
+
+    ///  <summary>Resets the version information object to the default state.
+    ///  </summary>
+    ///  <remarks>The default state is a version information object containing
+    ///  a root record with an empty fixed file info, an empty string
+    ///  information sub tree and a variable file info subtree containig an
+    ///  empty translation entry.</remarks>
     procedure Reset;
-      {Resets the version information object to the default state: a root
-      record with empty fixed file info, an empty string information sub tree
-      and a variable file info subtree with an empty translation entry}
+
+    ///  <summary>Reads the binary representation of the version information
+    ///  from a stream, parses it and stores it in this object.</summary>
+    ///  <param name="Stream"><c>IStream</c> Stream from which to read.</param>
     procedure ReadFromStream(const Stream: IStream);
-      {Reads the binary representation of the version information from the given
-      stream}
+
+    ///  <summary>Writes the binary representation of the version information
+    ///  to a stream.</summary>
+    ///  <param name="Stream"><c>IStream</c> Stream to be written to.</param>
     procedure WriteToStream(const Stream: IStream);
-      {Writes the binary representation of the version information to the given
-      stream}
+
+    ///  <summary>Copies the contents of another source object to this
+    ///  object, making the content of the two objects the same.</summary>
+    ///  <param name="Source"><c>TVerInfoData</c> [in] Object whose content is
+    ///  copied.</param>
+    ///  <remarks>This method can be used to convert a 16 bit resource into a
+    ///  32 bit resource and vice versa if one object is created as 16 bit and
+    ///  the other as 32 bit.</remarks>
     procedure Assign(const Source: TVerInfoData);
-      {Assigns the contents of the given source object to this object, making
-      the content of the two objects the same. This method canbe used to convert
-      a 16 bit resource into a 32 bit resource and vice versa if one object is
-      created as 16 bit and the other 32 bit}
-    // Fixed file info methods
+
+    // Fixed file information methods
+
+    ///  <summary>Gets the version information's fixed file information record.
+    ///  </summary>
+    ///  <returns><c>TVSFixedFileInfo</c>. The fixed file information record.
+    ///  </returns>
     function GetFixedFileInfo: TVSFixedFileInfo;
-      {Returns the version information's fixed file information record}
+
+    ///  <summary>Sets the version information's fixed file information record
+    ///  to a copy of a given record.</summary>
+    ///  <param name="Value"><c>TVSFixedFileInfo</c> [in] The fixed file
+    ///  information record to be used.</param>
+    ///  <remarks>This method ensures that the fixed file information record's
+    ///  version and signature fields are set to the correct values, regardless
+    ///  of what they are set to in <c>Value</c>.</remarks>
     procedure SetFixedFileInfo(const Value: TVSFixedFileInfo);
-      {Sets the version information's ficed file information record to the given
-      value, ensuring that the structure's version and signature are correct}
+
     // Variable info methods
+
+    ///  <summary>Gets the number of translations in the version information.
+    ///  </summary>
+    ///  <returns><c>Integer</c>. The number of translations.</returns>
     function GetTranslationCount: Integer;
-      {Returns number of translations in the version information}
+
+    ///  <summary>Gets the language ID of a translation.</summary>
+    ///  <param name="TransIdx"><c>Integer</c> [in] Index of the required
+    ///  translation in the translation table.</param>
+    ///  <returns><c>Word</c>. The required language ID.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TransIdx</c> is out of
+    ///  bounds.</exception>
     function GetTranslationLanguageID(TransIdx: Integer): Word;
-      {Returns the language id of the translation at the given index: exception
-      if index is out of range}
+
+    ///  <summary>Gets the character set a translation.</summary>
+    ///  <param name="TransIdx"><c>Integer</c> [in] Index of the required
+    ///  translation in the translation table.</param>
+    ///  <returns><c>Word</c>. The required character set code.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TransIdx</c> is out of
+    ///  bounds.</exception>
     function GetTranslationCharSet(TransIdx: Integer): Word;
-      {Returns the character set of the translation at the given index:
-      exception if index is out of range}
+
+    ///  <summary>Gets the translation code string of a translation.</summary>
+    ///  <param name="TransIdx"><c>Integer</c> [in] Index of the required
+    ///  translation in the translation table.</param>
+    ///  <returns><c>Word</c>. The required character set code.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TransIdx</c> is out of
+    ///  bounds.</exception>
     function GetTranslationString(TransIdx: Integer): string;
-      {Returns the translation code string of the translation at the given
-      index: exception if index is out of range}
+
+    ///  <summary>Sets a translation to have a given language ID and character
+    ///  set code.</summary>
+    ///  <param name="TransIdx"><c>Integer</c> [in] Index of the required
+    ///  translation in the translation table.</param>
+    ///  <param name="LanguageID"><c>Word</c> [in] Required language ID. If
+    ///  value is $FFFF then the language ID is not updated.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Code of required character set.
+    ///  If value is $FFFF then the character set code is not updated.</param>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TransIdx</c> is out of
+    ///  bounds.</exception>
     procedure SetTranslation(TransIdx: Integer; LanguageID, CharSet: Word);
-      {Sets the translation at the given index to have the given language ID and
-      character set. An exception is raised if the index is out of range}
+
+    ///  <summary>Adds a new translation to the translation table.</summary>
+    ///  <param name="LanguageID"><c>Word</c> [in] Required language ID. If
+    ///  value is $FFFF then the language ID is set to 0.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Code of required character set.
+    ///  If value is $FFFF then the character set code is set to 0.</param>
+    ///  <returns><c>Integer</c>. Index of the new translation in the
+    ///  translation table.</returns>
     function AddTranslation(LanguageID, CharSet: Word): Integer;
-      {Adds a new translation with the given language id and character set. The
-      index of the new translation is returned}
+
+    ///  <summary>Deletes a translation from the translation table.</summary>
+    ///  <param name="TransIdx"><c>Integer</c> [in] Index of the translation to
+    ///  be deleted in the translation table.</param>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TransIdx</c> is out of
+    ///  bounds.</exception>
     procedure DeleteTranslation(TransIdx: Integer);
-      {Deletes the translation at the given index: exception if index is out of
-      range}
+
+    ///  <summary>Finds the index of a translation in the translation table.
+    ///  </summary>
+    ///  <param name="LanguageID"><c>Word</c> [in] Language ID of the required
+    ///  translation. A value of $FFFF is converted to 0.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Character set code of the
+    ///  required translation. A value of $FFFF is converted to 0.</param>
+    ///  <returns><c>Integer</c>. Index of the translation in the translation
+    ///  table, or -1 if the translation is not found.</returns>
     function IndexOfTranslation(LanguageID, CharSet: Word): Integer;
-      {Returns the index of the translation with the given language id and
-      character set in the list of translations. -1 is returned if there is no
-      such translation}
+
     // String tables methods
+
+    ///  <summary>Gets the number of string tables in the version information.
+    ///  </summary>
+    ///  <returns><c>Integer</c>. The required number of string tables.
+    ///  </returns>
     function GetStringTableCount: Integer;
-      {Returns the number of string tables in the version information}
+
+    ///  <summary>Gets the translation code string of a string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of the required string
+    ///  table in the string table list.</param>
+    ///  <returns><c>string</c>. The required translation code string.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TableIdx</c> is out of
+    ///  bounds.</exception>
     function GetStringTableTransStr(TableIdx: Integer): string;
-      {Returns the translation code string that identifies the string table at
-      the given index: exception if the index is out of range}
+
+    ///  <summary>Gets the language ID encoded in the translation code string of
+    ///  a string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of the required string
+    ///  table in the string table list.</param>
+    ///  <returns><c>Word</c>. The required language ID.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TableIdx</c> is out of
+    ///  bounds.</exception>
     function GetStringTableLanguageID(TableIdx: Integer): Word;
-      {Returns the language ID encoded in the translation code string that
-      identifies the string table at the given index. Exception raised if
-      TableIdx is out of range}
+
+    ///  <summary>Gets the character set code encoded in the translation code
+    ///  string of a string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of the required string
+    ///  table in the string table list.</param>
+    ///  <returns><c>Word</c>. The required character set code.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TableIdx</c> is out of
+    ///  bounds.</exception>
     function GetStringTableCharSet(TableIdx: Integer): Word;
-      {Returns the character set code encoded in the translation code string
-      that identifies the string table at the given index. Exception raised if
-      TableIdx is out of range}
+
+    ///  <summary>Adds a new string table to the string table list.</summary>
+    ///  <param name="TransStr"><c>string</c> [in] Translation code string that
+    ///  identifies the new string table.</param>
+    ///  <returns><c>Integer</c>. The index of the new string table in the
+    ///  string table list.</returns>
+    ///  <remarks>The translation code string uniquely identifies that string
+    ///  table.</remarks>
     function AddStringTable(TransStr: string): Integer;
-      {Adds a new string table indentified by the given translation code string
-      and returns the index of the new entry}
+
+    ///  <summary>Adds a new string table to the string table list.</summary>
+    ///  <param name="LanguageID"><c>Word</c> [in] Language ID that partially
+    ///  identifies the new string table.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Character set code that
+    ///  partially identifies the new string table.</param>
+    ///  <returns><c>Integer</c>. The index of the new string table in the
+    ///  string table list.</returns>
+    ///  <remarks>The language ID and character set code taken together form the
+    ///  translation code string that uniquely identifies the string table.
+    ///  </remarks>
     function AddStringTableByTrans(LanguageID, CharSet: Word): Integer;
-      {Adds a new string table indentified by the given language ID and
-      character set and returns index of the new entry}
+
+    ///  <summary>Deletes a string table from the string table list.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] String table index of the
+    ///  string table to be deleted.</param>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TableIdx</c> is out of
+    ///  bounds.</exception>
     procedure DeleteStringTable(TableIdx: Integer);
-      {Deletes the string table at the given index: exception if index is out of
-      bounds}
+
+    ///  <summary>Finds the index of a string table in the string table list.
+    ///  </summary>
+    ///  <param name="TransStr"><c>string</c> [in] Translation code string that
+    ///  identifies the new string table.</param>
+    ///  <returns><c>Integer</c>. The index of the string table in the string
+    ///  table list, or -1 if the string table is not found.</returns>
     function IndexOfStringTable(const TransStr: string): Integer;
-      {Returns the index of the string table identified by the given translation
-      code string, or -1 if there is no such table}
+
+    ///  <summary>Finds the index of a string table in the string table list.
+    ///  </summary>
+    ///  <param name="LanguageID"><c>Word</c> [in] Language ID that partially
+    ///  identifies the new string table.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Character set code that
+    ///  partially identifies the new string table.</param>
+    ///  <returns><c>Integer</c>. The index of the string table in the string
+    ///  table list, or -1 if the string table is not found.</returns>
+    ///  <remarks>Taken together, <c>LanguageID</c> and <c>CharSet</c> uniquely
+    ///  identify the string table.</remarks>
     function IndexOfStringTableByTrans(LanguageID, CharSet: Word): Integer;
-      {Returns the index of the string table identified by the given language ID
-      and character set, or -1 if there is no such table}
+
     // String information methods
+
+    ///  <summary>Gets the number of string information items in a string table.
+    ///  </summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of string table in
+    ///  string table list.</param>
+    ///  <returns><c>Integer</c>. Number of string information items in string
+    ///  table.</returns>
     function GetStringCount(TableIdx: Integer): Integer;
-      {Returns the number of string information items in the string table with
-      the given index: exception if table index out of bounds}
+
+    ///  <summary>Gets the value of a string information item in a specified
+    ///  string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="StringIdx"><c>Integer</c> [in] Index of required string
+    ///  information item in string table.</param>
+    ///  <returns><c>string</c>. Required string value.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> or
+    ///  <c>StringIdx</c> is out of bounds.</exception>
     function GetStringValue(TableIdx, StringIdx: Integer): string;
-      {Returns the value of the string information item at the given index in
-      the string table with the given table index: exception if either index is
-      out of bounds}
+
+    ///  <summary>Gets the name of a string information item in a specified
+    ///  string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="StringIdx"><c>Integer</c> [in] Index of required string
+    ///  information item in string table.</param>
+    ///  <returns><c>string</c>. Required string name.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> or
+    ///  <c>StringIdx</c> is out of bounds.</exception>
     function GetStringName(TableIdx, StringIdx: Integer): string;
-      {Returns the name of the string information item at the given index in the
-      string table with the given table index: exception if either index is out
-      of bounds}
+
+    ///  <summary>Gets the value of a named string information item in a
+    ///  specified string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] String information item name.
+    ///  </param>
+    ///  <returns><c>string</c>. Required string value.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> is out
+    ///  of bounds or if there is no string information item named by
+    ///  <c>Name</c>.</exception>
     function GetStringValueByName(TableIdx: Integer; Name: string): string;
-      {Returns the value of the string information item with the given name in
-      the string table with the given index. Exception raised if table index is
-      invalid if string with given name doesn't exist}
+
+    ///  <summary>Gets the index of the a named string info item within a
+    ///  specified string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] String information item name to
+    ///  be found.</param>
+    ///  <returns><c>Integer</c>. Index of the named string information item in
+    ///  the specified string table, or -1 if the name can't be found.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> is out
+    ///  of bounds.</exception>
     function IndexOfString(TableIdx: Integer; const Name: string): Integer;
-      {Returns the index of the the string info item with the given name in the
-      string table at the given index: exception if string table index is out of
-      bounds}
+
+    ///  <summary>Gets the index of the a named string info item within a
+    ///  string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] String information item name.
+    ///  </param>
+    ///  <returns><c>Integer</c>. Index of named string information item or -1
+    ///  if no such item exists.</returns>
+    ///  <exception><c>EVerInfoData</c> raised if <c>TableIdx</c> is out of
+    ///  bounds.</exception>
     function AddString(TableIdx: Integer; const Name, Value: string): Integer;
-      {Adds a new string with the given name to the string table at the given
-      index and returns new string item's index in string table. Exceptions are
-      raised if string table index is out of bounds or if a string item with
-      given name already exists in table}
+
+    ///  <summary>Sets the value of a named string information item in a
+    ///  specified string table, adding a new item if one doesn't already exist
+    ///  with that name.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] String information item name.
+    ///  </param>
+    ///  <param name="Value"><c>string</c> [in] Value to be set.</param>
+    ///  <returns><c>Integer</c>. Index of the updated or added string
+    ///  information item in the string table.</returns>
     function AddOrUpdateString(TableIdx: Integer; const Name, Value: string):
       Integer;
-      {If a string with given Name is already in the string table at TableIndex,
-      the string's value is updated to given Value, otherwise a new string with
-      given Name and Value is added to the string table. In either case the
-      index of the string in the table is returned}
+
+    ///  <summary>Sets the value of a string information item in a specified
+    ///  string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="StringIdx"><c>Integer</c> [in] Index of string information
+    ///  item to be updated in string table.</param>
+    ///  <param name="Value"><c>string</c> [in] Value to be set.</param>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> or
+    ///  <c>StringIdx</c> is out of bounds.</exception>
     procedure SetStringValue(TableIdx, StringIdx: Integer;
       const Value: string);
-      {Sets the string item at the given index in the string table at the given
-      table index to the given value: exception if either index is out of bounds}
+
+    ///  <summary>Sets the value of a named string information item in a
+    ///  specified string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] String information item name.
+    ///  </param>
+    ///  <param name="Value"><c>string</c> [in] Value to be set.</param>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> is out
+    ///  of bounds or if there is no string information item named by
+    ///  <c>Name</c>.</exception>
     procedure SetStringValueByName(TableIdx: Integer;
       const Name, Value: string);
-      {Sets the string item with the given name in the string table at the given
-      table index to the given value. An exception is raised if either the table
-      index is out of bounds or if Name doesn't exist in the string table}
+
+    ///  <summary>Deletes a string information item from a specified string
+    ///  table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="StringIdx"><c>Integer</c> [in] Index of string information
+    ///  to be deleted within string table.</param>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> or
+    ///  <c>StringIdx</c> is out of bounds.</exception>
     procedure DeleteString(TableIdx, StringIdx: Integer);
-      {Delete the string info item at the given index in the string table at the
-      given table index: exception if either index is out of bounds}
+
+    ///  <summary>Deletes a named string information item from a specified
+    ///  string table.</summary>
+    ///  <param name="TableIdx"><c>Integer</c> [in] Index of required string
+    ///  table in string table list.</param>
+    ///  <param name="Name"><c>string</c> [in] Name of string information item
+    ///  to be deleted within string table.</param>
+    ///  <exception><c>EVerInfoData</c> raised if either <c>TableIdx</c> is out
+    ///  of bounds or if there is no string information item named by
+    ///  <c>Name</c>.</exception>
     procedure DeleteStringByName(TableIdx: Integer; Name: string);
-      {Delete the string info item with the given name from the string table
-      with the given index. Exception raised if Name does not exist}
+
     // Helper method
+
+    ///  <summary>Converts a language ID and a character set code into a
+    ///  translation string.</summary>
+    ///  <param name="Language"><c>Word</c> [in] Language ID.</param>
+    ///  <param name="CharSet"><c>Word</c> [in] Character set code.</param>
+    ///  <returns><c>string</c>. The translation string.</returns>
     class function TransToString(const Language, CharSet: WORD): string;
-      {Returns a string representation of the translation identified by the
-      given language and character set codes}
   end;
 
-  {
-  EVerInfoData:
-    Class of exceptions raised by methods of TVerInfoData class.
-
-    Inheritance: EVerInfoData -> [Exception] -> [TObject]
-  }
+  ///  <summary>Class of exceptions raised by methods of <c>TVerInfoData</c>
+  ///  class.</summary>
   EVerInfoData = class(Exception);
 
 
 implementation
+
+{
+  The heirachy of version information records is:
+
+    VS_VERSION_INFO = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // size of TVSFixedFileInfo record (Word)
+      wType         // 0 - binary (Word: 32 bit records only)
+      szKey         // 'VS_VERSION_INFO' (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      value         // fixed file information (TVSFixedFileInfo)
+      pad2          // padding to DWORD boundary
+      children      // VarFileInfo and StringFileInfo records
+    end;
+
+    VarFileInfo = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // 0 - there is no value (Word)
+      wType         // 0 - binary (Word: 32 bit records only)
+      szKey         // 'VarFileInfo' (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      children      // array of Var records (usually just one)
+    end;
+
+    Var = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // length of list of translation ids (Word)
+      wType         // 0 - binary (Word: 32 bit records only)
+      szKey         // 'Translation' (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      value         // list of translation ids (array of DWORD)
+    end;
+
+    StringFileInfo = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // 0 - no value (Word)
+      wType         // 0 - binary (Word: 32 bit records only)
+      szKey         // 'StringFileInfo' (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      children      // array of StringTable records
+    end;
+
+    StringTable = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // 0 - no value (Word)
+      wType         // 0 - binary (Word: 32 bit records only)
+      szKey         // translation code (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      children      // array of string records
+    end;
+
+    String = record
+      wLength       // length of structure inc children (Word)
+      wValueLength  // length of string value (Word)
+      wType         // 1 - text (Word: 32 bit records only)
+      szKey         // name of string (WideStr: 32 bit, AnsiStr: 16 bit)
+      pad1          // padding to DWORD boundary
+      value         // string's value
+    end;
+}
 
 resourcestring
   // Error messages
@@ -355,10 +572,6 @@ type
 
 function TVerInfoData.AddOrUpdateString(TableIdx: Integer; const Name,
   Value: string): Integer;
-  {If a string with given Name is already in the string table at TableIndex, the
-  string's value is updated to given Value, otherwise a new string with given
-  Name and Value is added to the string table. In either case the index of the
-  string in the table is returned}
 begin
   Result := IndexOfString(TableIdx, Name);
   if Result = -1 then
@@ -371,10 +584,6 @@ end;
 
 function TVerInfoData.AddString(TableIdx: Integer; const Name,
   Value: string): Integer;
-  {Adds a new string with the given name to the string table at the given index
-  and returns new string item's index in string table. Exceptions are raised if
-  string table index is out of bounds or if a string item with given name
-  already exists in table}
 var
   StrTable: TVerInfoRec;    // string table record at given index
   StrRec: TVerInfoRec;      // string info record with given name
@@ -394,8 +603,6 @@ begin
 end;
 
 function TVerInfoData.AddStringTable(TransStr: string): Integer;
-  {Adds a new string table indentified by the given translation code string and
-  returns the index of the new entry}
 begin
   // New string table will be added to end of list of tables
   Result := GetStringTableCount;
@@ -405,15 +612,11 @@ begin
 end;
 
 function TVerInfoData.AddStringTableByTrans(LanguageID, CharSet: Word): Integer;
-  {Adds a new string table indentified by the given language ID and character
-  set and returns index of the new entry}
 begin
   Result := AddStringTable(TransToString(LanguageID, CharSet));
 end;
 
 function TVerInfoData.AddTranslation(LanguageID, CharSet: Word): Integer;
-  {Adds a new translation with the given language id and character set. The
-  index of the new translation is returned}
 var
   TransRec: TVerInfoRec;  // reference to 'Translation' record
   TempBuf: PByte;         // temp buffer for new translation list
@@ -443,10 +646,6 @@ begin
 end;
 
 procedure TVerInfoData.Assign(const Source: TVerInfoData);
-  {Assigns the contents of the given source object to this object, making the
-  content of the two objects the same. This method canbe used to convert a 16
-  bit resource into a 32 bit resource and vice versa if one object is created as
-  16 bit and the other 32 bit}
 var
   SrcStrTableIdx: Integer;  // index of a string table in source object
   NewTableIdx: Integer;     // index of a new string table in this object
@@ -481,9 +680,6 @@ begin
 end;
 
 constructor TVerInfoData.Create(VerResType: TVerResType);
-  {Class constructor: creates a new, empty, version information object with the
-  required compulsory child nodes. VerResType indicates whether this is 16 or 32
-  bit version info}
 begin
   inherited Create;
   // Record type of version infor records we're dealing with
@@ -498,8 +694,6 @@ end;
 
 function TVerInfoData.CreateNode(Owner: TVerInfoRec;
   const Name: string): TVerInfoRec;
-  {Creates a new node (record) of required type (16 or 32 bit) with the given
-  name as a child of the given owner record}
 begin
   Result := VerInfoRecClass.Create(Owner);
   Result.Name := Name;
@@ -507,8 +701,6 @@ end;
 
 class procedure TVerInfoData.DecodeTrans(const Trans: DWORD; out Language,
   CharSet: WORD);
-  {Decodes the translation encoded in Trans into its language and character set
-  components.}
 begin
   Language := LoWord(Trans);
   CharSet := HiWord(Trans);
@@ -516,8 +708,6 @@ end;
 
 class procedure TVerInfoData.DecodeTransStr(const TransStr: string;
   out Language, CharSet: WORD);
-  {Decodes the translation encoded in translation string TransStr into its
-  language and character set components}
 
   {$IF not Defined(StrToUInt)}
   function StrToUInt(const AValue: string): Cardinal;
@@ -532,8 +722,6 @@ begin
 end;
 
 procedure TVerInfoData.DeleteString(TableIdx, StringIdx: Integer);
-  {Delete the string info item at the given index in the string table at the
-  given table index: exception if either index is out of bounds}
 var
   StrRec: TVerInfoRec;  // reference to required string info item
 begin
@@ -545,8 +733,6 @@ begin
 end;
 
 procedure TVerInfoData.DeleteStringByName(TableIdx: Integer; Name: string);
-  {Delete the string info item with the given name from the string table with
-  the given index. Exception raised if Name does not exist}
 var
   StrIdx: Integer;
 begin
@@ -557,8 +743,6 @@ begin
 end;
 
 procedure TVerInfoData.DeleteStringTable(TableIdx: Integer);
-  {Deletes the string table at the given index: exception if index is out of
-  bounds}
 var
   StrTableRec: TVerInfoRec; // reference to required string table record
 begin
@@ -570,8 +754,6 @@ begin
 end;
 
 procedure TVerInfoData.DeleteTranslation(TransIdx: Integer);
-  {Deletes the translation at the given index: exception if index is out of
-  range}
 var
   TransRec: TVerInfoRec;    // ref to 'Translation' record
   TempBuf: Pointer;         // temp buffer to hold updated translation list
@@ -604,8 +786,6 @@ begin
 end;
 
 destructor TVerInfoData.Destroy;
-  {Class destructor: destroys root ver info record (which destroys all its child
-  records)}
 begin
   fVIRoot.Free;
   inherited;
@@ -613,9 +793,6 @@ end;
 
 class function TVerInfoData.EncodeTrans(const OldTrans: DWORD; const Language,
   CharSet: WORD): DWORD;
-  {Updates the given translation code OldTrans with the either or both of the
-  given language and character set codes. If either of these codes are $FFFF
-  they are ignored}
 begin
   Result := OldTrans;
   if Language <> $FFFF then
@@ -625,14 +802,12 @@ begin
 end;
 
 procedure TVerInfoData.EnsureRequiredNodes;
-  {Ensures that the compulsory version information data nodes are present}
 
-  // ---------------------------------------------------------------------------
+  // Checks if a version info record with the given name exists as a child of
+  // the given owner record. If the node dosen't exist it is created. A
+  // reference to the required node is returned.
   function EnsureNode(Owner: TVerInfoRec;
     const Name: string): TVerInfoRec;
-    {Checks if a version info record with the given name exists as a child of
-    the given owner record. If the node dosen't exist it is created. A reference
-    to the required node is returned}
   begin
     // Check if record (node) exists
     Result := FindChildByName(Owner, Name);
@@ -640,7 +815,6 @@ procedure TVerInfoData.EnsureRequiredNodes;
       // Node doesn't exist so create it
       Result := CreateNode(Owner, Name);
   end;
-  // ---------------------------------------------------------------------------
 
 var
   VarFileInfoRoot: TVerInfoRec;     // root record for variable info
@@ -657,17 +831,12 @@ end;
 
 procedure TVerInfoData.Error(const FmtStr: string;
   const Args: array of const);
-  {Raises a EVerInfoData exception formatted from given format string and
-  arguments}
 begin
   raise EVerInfoData.CreateFmt(FmtStr, Args);
 end;
 
 function TVerInfoData.FindChildByName(const Root: TVerInfoRec;
   const Name: string): TVerInfoRec;
-  {Finds the first child record of the given 'root' record that has the given
-  'name' (key) and returns a reference to it. If no such child record exists
-  then nil is returned}
 var
   ChildIdx: Integer;  // Index of child in parent's Children property
 begin
@@ -681,7 +850,6 @@ begin
 end;
 
 function TVerInfoData.GetFixedFileInfo: TVSFixedFileInfo;
-  {Returns the version information's fixed file information record}
 var
   Ptr: ^TVSFixedFileInfo; // pointer to fixed file info record
 begin
@@ -700,8 +868,6 @@ begin
 end;
 
 function TVerInfoData.GetStringCount(TableIdx: Integer): Integer;
-  {Returns the number of string information items in the string table with the
-  given index: exception if table index out of bounds}
 var
   StrTable: TVerInfoRec;  // reference to require string table record
 begin
@@ -714,9 +880,6 @@ end;
 
 function TVerInfoData.GetStringFileInfoItem(TableIdx,
   StrIdx: Integer): TVerInfoRec;
-  {Returns a reference to the ver info record that stores information about the
-  string info at the given index in the given translations. Raises exception if
-  table or string index are out of bounds}
 var
   StrTable: TVerInfoRec;  // required string file info table
 begin
@@ -731,7 +894,6 @@ begin
 end;
 
 function TVerInfoData.GetStringFileInfoRoot: TVerInfoRec;
-  {Returns reference to the 'StringFileInfo' record which must exist}
 begin
   // The 'StringFileInfo' record is a child of the root record: must exist
   Result := FindChildByName(fVIRoot, cStringFileInfo);
@@ -740,8 +902,6 @@ end;
 
 function TVerInfoData.GetStringFileInfoTable(
   TableIdx: Integer): TVerInfoRec;
-  {Returns reference to the string file info table at the give index in the list
-  of tables. Raises exception if string file info is out of range}
 var
   StrRoot: TVerInfoRec; // root ver info record for all string file info
 begin
@@ -756,9 +916,6 @@ end;
 
 function TVerInfoData.GetStringName(TableIdx,
   StringIdx: Integer): string;
-  {Returns the name of the string information item at the given index in the
-  string table with the given table index: exception if either index is out of
-  bounds}
 var
   StrRec: TVerInfoRec;  // the ver info string record for the string
 begin
@@ -770,9 +927,6 @@ begin
 end;
 
 function TVerInfoData.GetStringTableCharSet(TableIdx: Integer): Word;
-  {Returns the character set code encoded in the translation code string that
-  identifies the string table at the given index. Exception raised if TableIdx
-  is out of range}
 var
   Dummy: Word;
 begin
@@ -780,7 +934,6 @@ begin
 end;
 
 function TVerInfoData.GetStringTableCount: Integer;
-  {Returns the number of string tables in the version information}
 var
   StrRoot: TVerInfoRec; // root ver info record for all string file info
 begin
@@ -791,9 +944,6 @@ begin
 end;
 
 function TVerInfoData.GetStringTableLanguageID(TableIdx: Integer): Word;
-  {Returns the language ID encoded in the translation code string that
-  identifies the string table at the given index. Exception raised if TableIdx
-  is out of range}
 var
   Dummy: Word;
 begin
@@ -801,8 +951,6 @@ begin
 end;
 
 function TVerInfoData.GetStringTableTransStr(TableIdx: Integer): string;
-  {Returns the translation code string that identifies the string table at the
-  given index: exception if the index is out of range}
 var
   StrTable: TVerInfoRec;  // refers to string table's ver info record
 begin
@@ -814,9 +962,6 @@ end;
 
 function TVerInfoData.GetStringValue(TableIdx,
   StringIdx: Integer): string;
-  {Returns the value of the string information item at the given index in the
-  string table with the given table index: exception if either index is out of
-  bounds}
 var
   StrRec: TVerInfoRec;  // string item record referece
 begin
@@ -829,9 +974,6 @@ end;
 
 function TVerInfoData.GetStringValueByName(TableIdx: Integer;
   Name: string): string;
-  {Returns the value of the string information item with the given name in the
-  string table with the given index. Exception raised if table index is invalid
-  if string with given name doesn't exist}
 var
   StringIdx: Integer;
 begin
@@ -842,8 +984,6 @@ begin
 end;
 
 function TVerInfoData.GetTranslationCharSet(TransIdx: Integer): Word;
-  {Returns the character set of the translation at the given index: exception if
-  index is out of range}
 var
   Dummy: Word;
 begin
@@ -852,35 +992,27 @@ begin
 end;
 
 function TVerInfoData.GetTranslationCount: Integer;
-  {Returns number of translations in the version information}
 begin
   // Get count of translation from translation record (which must exist)
   Result := InternalGetTranslationCount(GetTranslationRec);
 end;
 
 function TVerInfoData.GetTranslationLanguageID(TransIdx: Integer): Word;
-  {Returns the language id of the translation at the given index: exception if
-  index is out of range}
-  var
-    Dummy: Word;
+var
+  Dummy: Word;
 begin
   // Decode the translation value at index  to get just the language id
   DecodeTrans(InternalGetTranslation(TransIdx), Result, Dummy);
 end;
 
 function TVerInfoData.GetTranslationRec: TVerInfoRec;
-  {Returns a reference to the ver info record that stores information about all
-  supported translations - i.e. the 'Translation' record. This record must
-  exist}
 begin
-  // Get translation root from with VarFileInfo: both these must exist
+  // Get translation root from within VarFileInfo: both these must exist
   Result := FindChildByName(GetVarFileInfoRoot, cTranslation);
   Assert(Assigned(Result));
 end;
 
 function TVerInfoData.GetTranslationString(TransIdx: Integer): string;
-  {Returns the translation code string of the translation at the given index:
-  exception if index is out of range}
 var
   Language, CharSet: WORD;  // the language id and charset for the translation
 begin
@@ -891,7 +1023,6 @@ begin
 end;
 
 function TVerInfoData.GetVarFileInfoRoot: TVerInfoRec;
-  {Returns reference to the 'VarFileInfo' record which must exist}
 begin
   // The 'VarFileInfo' record is a child of the root record: must exist
   Result := FindChildByName(fVIRoot, cVarFileInfo);
@@ -900,9 +1031,6 @@ end;
 
 function TVerInfoData.IndexOfChildByName(const Root: TVerInfoRec;
   const Name: string): Integer;
-  {Examines the list of child nodes of the given version info record and returns
-  the index in the list of the the child record with the given name, or -1 if
-  there is no such child record}
 var
   Child: TVerInfoRec; // reference to each child record of root
   Idx: Integer;           // loops thru list of root's children
@@ -926,9 +1054,6 @@ end;
 
 function TVerInfoData.IndexOfString(TableIdx: Integer;
   const Name: string): Integer;
-  {Returns the index of the the string info item with the given name in the
-  string table at the given index: exception if string table index is out of
-  bounds}
 var
   StrTable: TVerInfoRec;  // reference to required string table
 begin
@@ -940,8 +1065,6 @@ begin
 end;
 
 function TVerInfoData.IndexOfStringTable(const TransStr: string): Integer;
-  {Returns the index of the string table identified by the given translation
-  code string, or -1 if there is no such table}
 var
   StrRoot: TVerInfoRec; // root ver info record for all string file info
 begin
@@ -954,17 +1077,12 @@ end;
 
 function TVerInfoData.IndexOfStringTableByTrans(LanguageID,
   CharSet: Word): Integer;
-  {Returns the index of the string table identified by the given language ID
-  and character set, or -1 if there is no such table}
 begin
   Result := IndexOfStringTable(TransToString(LanguageID, CharSet));
 end;
 
 function TVerInfoData.IndexOfTranslation(LanguageID,
   CharSet: Word): Integer;
-  {Returns the index of the translation with the given language id and character
-  set in the list of translations. -1 is returned if there is no such
-  translation}
 var
   TransRec: TVerInfoRec;  // record that provides info about translations
   TransCode: DWORD;       // translation code for language and char set
@@ -991,8 +1109,6 @@ begin
 end;
 
 function TVerInfoData.InternalGetTranslation(TransIdx: Integer): DWORD;
-  {Returns the translation code stored at index I in the list of translations.
-  Raises exception if the index is out of bounds}
 var
   TransRec: TVerInfoRec;  // Ver info record that stores translation info
 begin
@@ -1009,7 +1125,6 @@ end;
 
 function TVerInfoData.InternalGetTranslationCount(
   TransRec: TVerInfoRec): Integer;
-  {Returns the number of translations in the version information}
 begin
   Assert(Assigned(TransRec));
   // Number of translations = number of elements in translation list stored in
@@ -1019,8 +1134,6 @@ end;
 
 procedure TVerInfoData.InternalSetTranslation(TransIdx: Integer;
   Value: DWORD);
-  {Sets the translation at the given index to the given value. An exception is
-  raised if the index is out of bounds}
 var
   TransRec: TVerInfoRec;  // 'Translation' record reference
 begin
@@ -1036,8 +1149,6 @@ begin
 end;
 
 procedure TVerInfoData.ReadFromStream(const Stream: IStream);
-  {Reads the binary representation of the version information from the given
-  stream}
 begin
   // Get root record to read itself from stream: this automatically reads the
   // whole tree of version info data
@@ -1046,9 +1157,6 @@ begin
 end;
 
 procedure TVerInfoData.Reset;
-  {Resets the version information object to the default state: a root record
-  with empty fixed file info, an empty string information sub tree and a
-  variable file info subtree with an empty translation entry}
 var
   FFI: TVSFixedFileInfo;  // fixed file info value record of root
 begin
@@ -1062,8 +1170,6 @@ begin
 end;
 
 procedure TVerInfoData.SetFixedFileInfo(const Value: TVSFixedFileInfo);
-  {Sets the version information's ficed file information record to the given
-  value, ensuring that the structure's version and signature are correct}
 var
   FFI: TVSFixedFileInfo;  // copy of data to be written: we update this
 begin
@@ -1078,8 +1184,6 @@ end;
 
 procedure TVerInfoData.SetStringValue(TableIdx, StringIdx: Integer;
   const Value: string);
-  {Sets the string item at the given index in the string table at the given
-  table index to the given value: exception if either index is out of bounds}
 var
   StrRec: TVerInfoRec;     // string info record with given name
 begin
@@ -1092,9 +1196,6 @@ end;
 
 procedure TVerInfoData.SetStringValueByName(TableIdx: Integer; const Name,
   Value: string);
-  {Sets the string item with the given name in the string table at the given
-  table index to the given value. An exception is raised if either the table
-  index is out of bounds or if Name doesn't exist in the string table}
 var
   StrIdx: Integer;
 begin
@@ -1107,15 +1208,11 @@ end;
 
 procedure TVerInfoData.SetTranslation(TransIdx: Integer; LanguageID,
   CharSet: Word);
-  {Sets the translation at the given index to have the given language ID and
-  character set. An exception is raised if the index is out of range}
 begin
   InternalSetTranslation(TransIdx, EncodeTrans(0, LanguageID, CharSet));
 end;
 
 class procedure TVerInfoData.StampFFI(var FFI: TVSFixedFileInfo);
-  {Ensures that given fixed file info structure has correct version (1.0) and
-  signature}
 begin
   FFI.dwSignature := $FEEF04BD;
   FFI.dwStrucVersion := $00010000;
@@ -1123,14 +1220,11 @@ end;
 
 class function TVerInfoData.TransToString(const Language,
   CharSet: WORD): string;
-  {Returns a string representation of the translation identified by the given
-  language and character set codes}
 begin
   Result := IntToHex(Language, 4) + IntToHex(CharSet, 4);
 end;
 
 function TVerInfoData.VerInfoRecClass: TVerInfoRecClass;
-  {Returns class of version info record object to be created}
 begin
   case fVerResType of
     vrtAnsi: Result := TVerInfoRecA;
@@ -1141,8 +1235,6 @@ begin
 end;
 
 procedure TVerInfoData.WriteToStream(const Stream: IStream);
-  {Writes the binary representation of the version information to the given
-  stream}
 begin
   // Get the root record to write itself to stream: this automatically writes
   // all the tree of records
