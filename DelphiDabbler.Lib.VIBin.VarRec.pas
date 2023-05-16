@@ -11,7 +11,7 @@
  * bit versions of the record format.
 }
 
-unit UVerInfoRec;
+unit DelphiDabbler.Lib.VIBin.VarRec;
 
 {$Include .\DelphiDabbler.Lib.VIBin.Defines.inc}
 

@@ -9,7 +9,7 @@
  * methods that permit the resource to be read and modified.
 }
 
-unit UVerInfoData;
+unit DelphiDabbler.Lib.VIBin.Resource;
 
 {$Include .\DelphiDabbler.Lib.VIBin.Defines.inc}
 
@@ -29,7 +29,7 @@ uses
   ActiveX,
   {$ENDIF}
   // Project
-  UVerInfoRec;
+  DelphiDabbler.Lib.VIBin.VarRec;
 
 type
 
