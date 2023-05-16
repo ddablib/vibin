@@ -37,9 +37,9 @@ uses
 
 type
 
-  ///  <summary>Class reference to <c>TVerInfoRec</c> and descendent classes.
+  ///  <summary>Class reference to <c>TVIBinVarRec</c> and descendent classes.
   ///  </summary>
-  TVerInfoRecClass = class of TVerInfoRec;
+  TVIBinVarRecClass = class of TVIBinVarRec;
 
   ///  <summary>Abstract base class for classes that encapsulate 16 and 32 bit
   ///  version information records.</summary>
@@ -75,14 +75,14 @@ type
   ///  methods that specialised descendants override to account for the
   ///  differences between versions.</para>
   ///  </remarks>
-  TVerInfoRec = class(TObject)
+  TVIBinVarRec = class(TObject)
   private
     ///  <summary>Value of <c>Name</c> property.</summary>
     fName: string;
     ///  <summary>Value of <c>DataType</c> property.</summary>
     fDataType: Word;
     ///  <summary>Read access method for <c>Children</c> property.</summary>
-    function GetChild(I: Integer): TVerInfoRec;
+    function GetChild(I: Integer): TVIBinVarRec;
     ///  <summary>Read access method for <c>NumChildren</c> property.</summary>
     function GetNumChildren: Integer;
     ///  <summary>Read access method for <c>Value</c> property.</summary>
@@ -97,18 +97,18 @@ type
     fValueBufferSize: WORD;
     ///  <summary>Reference to version info record that is the parent of this
     ///  one: nil if this is the root record.</summary>
-    fParent: TVerInfoRec;
+    fParent: TVIBinVarRec;
   protected
     ///  <summary>Returns reference to the type of class this is. Sub classes
     ///  return their own classes when overriding.</summary>
     ///  <remarks>Used to create child instances of the correct type.</remarks>
-    function ClassRef: TVerInfoRecClass; virtual; abstract;
+    function ClassRef: TVIBinVarRecClass; virtual; abstract;
     ///  <summary>Sets data type to given value.</summary>
     ///  <remarks>For use in descendent classes.</remarks>
     procedure SetDataType(AValue: Word);
     ///  <summary>Deletes the given child from the list of child objects.
     ///  </summary>
-    procedure UnLink(const Child: TVerInfoRec);
+    procedure UnLink(const Child: TVIBinVarRec);
     ///  <summary>Allocates a buffer of given size to hold a value. Deallocates
     ///  any existing buffer first.</summary>
     procedure AllocateValueBuffer(const Size: Integer);
@@ -161,8 +161,8 @@ type
 
     ///  <summary>Object constructor. Creates a version information record with
     ///  a given parent record.</summary>
-    ///  <param name="Parent"><c>TVerInfoRec</c> [in] Parent record.</param>
-    constructor Create(const Parent: TVerInfoRec); overload;
+    ///  <param name="Parent"><c>TVIBinVarRec</c> [in] Parent record.</param>
+    constructor Create(const Parent: TVIBinVarRec); overload;
 
     ///  <summary>Object destructor. Frees any allocated buffer, all child
     ///  objects and owned object.</summary>
@@ -213,8 +213,8 @@ type
     ///  <summary>Array of child version information structures parented by this
     ///  object.</summary>
     ///  <param name="I"><c>Integer</c> [in] Index into array.</param>
-    ///  <returns><c>TVerInfoRec</c>. Child record at index <c>I</c>.</returns>
-    property Children[I: Integer]: TVerInfoRec read GetChild;
+    ///  <returns><c>TVIBinVarRec</c>. Child record at index <c>I</c>.</returns>
+    property Children[I: Integer]: TVIBinVarRec read GetChild;
 
     ///  <summary>Number of child structures parented by this object.</summary>
     ///  <returns><c>Integer</c> Number of child structure.</returns>
@@ -239,11 +239,11 @@ type
   ///  </summary>
   ///  <remarks>Simply provides implementations for abstract methods of the base
   ///  class.</remarks>
-  TVerInfoRecA = class(TVerInfoRec)
+  TVIBinVarRecA = class(TVIBinVarRec)
   protected
     ///  <summary>Returns reference to this class type.</summary>
     ///  <remarks>Used to create child instances of the correct type.</remarks>
-    function ClassRef: TVerInfoRecClass; override;
+    function ClassRef: TVIBinVarRecClass; override;
     ///  <summary>Reads the common header fields, and any padding characters,
     ///  from a 16 bit version information structure. Returns number of bytes
     ///  read.</summary>
@@ -271,11 +271,11 @@ type
   ///  </summary>
   ///  <remarks>Simply provides implementations for abstract methods of the base
   ///  class.</remarks>
-  TVerInfoRecW = class(TVerInfoRec)
+  TVIBinVarRecW = class(TVIBinVarRec)
   protected
     ///  <summary>Returns reference to this class type.</summary>
     ///  <remarks>Used to create child instances of the correct type.</remarks>
-    function ClassRef: TVerInfoRecClass; override;
+    function ClassRef: TVIBinVarRecClass; override;
     ///  <summary>Reads the common header fields, and any padding characters,
     ///  from a 32 bit version information structure. Returns number of bytes
     ///  read.</summary>
@@ -301,7 +301,7 @@ type
 
   ///  <summary>Class of exception raised by TVersionInfoRec instances.
   ///  </summary>
-  EVerInfoRec = class(Exception);
+  EVIBinVarRec = class(Exception);
 
 
 implementation
@@ -324,16 +324,16 @@ begin
     Result := PadTo - ANum mod PadTo;
 end;
 
-{ TVerInfoRec }
+{ TVIBinVarRec }
 
-procedure TVerInfoRec.AllocateValueBuffer(const Size: Integer);
+procedure TVIBinVarRec.AllocateValueBuffer(const Size: Integer);
 begin
   DeallocateValueBuffer;
   fValueBufferSize := Size;
   GetMem(fValueBuffer, fValueBufferSize);
 end;
 
-procedure TVerInfoRec.Clear;
+procedure TVIBinVarRec.Clear;
 var
   I: Integer; // loops thru all child objects
 begin
@@ -347,13 +347,13 @@ begin
   SetDataType(0);
 end;
 
-constructor TVerInfoRec.Create;
+constructor TVIBinVarRec.Create;
 begin
   // Simply create with nil owner
   Create(nil);
 end;
 
-constructor TVerInfoRec.Create(const Parent: TVerInfoRec);
+constructor TVIBinVarRec.Create(const Parent: TVIBinVarRec);
 begin
   inherited Create;
   // Create list to store child records
@@ -366,7 +366,7 @@ begin
   Clear;
 end;
 
-procedure TVerInfoRec.DeallocateValueBuffer;
+procedure TVIBinVarRec.DeallocateValueBuffer;
 begin
   if fValueBufferSize > 0 then
   begin
@@ -375,7 +375,7 @@ begin
   end;
 end;
 
-destructor TVerInfoRec.Destroy;
+destructor TVIBinVarRec.Destroy;
 begin
   // Get rid of owned objects
   Clear;
@@ -387,17 +387,17 @@ begin
   inherited Destroy;
 end;
 
-function TVerInfoRec.GetChild(I: Integer): TVerInfoRec;
+function TVIBinVarRec.GetChild(I: Integer): TVIBinVarRec;
 begin
-  Result := TVerInfoRec(fList[I]);
+  Result := TVIBinVarRec(fList[I]);
 end;
 
-function TVerInfoRec.GetNumChildren: Integer;
+function TVIBinVarRec.GetNumChildren: Integer;
 begin
   Result := fList.Count;
 end;
 
-function TVerInfoRec.GetStringValue: string;
+function TVIBinVarRec.GetStringValue: string;
 var
   ValuePtr: Pointer;  // points to buffer containing string value
 begin
@@ -410,7 +410,7 @@ begin
     Result := '';
 end;
 
-function TVerInfoRec.GetValue: Pointer;
+function TVIBinVarRec.GetValue: Pointer;
 begin
   if fValueBufferSize = 0 then
     // There is no value, return nil
@@ -420,12 +420,12 @@ begin
     Result := fValueBuffer;
 end;
 
-function TVerInfoRec.GetValueSize: Integer;
+function TVIBinVarRec.GetValueSize: Integer;
 begin
   Result := fValueBufferSize;
 end;
 
-procedure TVerInfoRec.ReadFromStream(const Stream: IStream);
+procedure TVIBinVarRec.ReadFromStream(const Stream: IStream);
 var
   Reader: TStream;  // Adapts IStream as TStream
 begin
@@ -439,10 +439,10 @@ begin
   end;
 end;
 
-function TVerInfoRec.ReadObject(const Reader: TStream): Integer;
+function TVIBinVarRec.ReadObject(const Reader: TStream): Integer;
 var
   wLength, wValueLength: WORD;  // length of structure and Value member
-  Child: TVerInfoRec;           // reference to child record objects
+  Child: TVIBinVarRec;           // reference to child record objects
   WC: WideChar;                 // wide character read from value string
   WValue: WideString;           // wide string to hold wide string value
   WVIdx: Integer;               // index into wide string buffer
@@ -455,7 +455,7 @@ var
 begin
   // Check there's something to read
   if Reader.Size = 0 then
-    raise EVerInfoRec.Create(sNoVerInfo);
+    raise EVIBinVarRec.Create(sNoVerInfo);
   try
     // Clear the existing contents
     Clear;
@@ -554,13 +554,13 @@ begin
   except
     // Convert any stream errors into a version info record corrupt exception
     on E: EStreamError do
-      raise EVerInfoRec.Create(sVerInfoCorrupt);
+      raise EVIBinVarRec.Create(sVerInfoCorrupt);
     on E: Exception do
       raise;
   end;
 end;
 
-function TVerInfoRec.ReadPadding(const Reader: TStream;
+function TVIBinVarRec.ReadPadding(const Reader: TStream;
   const BytesRead: Integer): Integer;
 var
   PadBuf: array[0..SizeOf(DWORD)-1] of Byte;    // buffer to read padding into
@@ -572,7 +572,7 @@ begin
     Reader.ReadBuffer(PadBuf, Result);
 end;
 
-procedure TVerInfoRec.SetBinaryValue(const Buffer; const Size: Integer);
+procedure TVIBinVarRec.SetBinaryValue(const Buffer; const Size: Integer);
 begin
   // Allocate value buffer of required size and copy the given data buffer to it
   AllocateValueBuffer(Size);
@@ -581,12 +581,12 @@ begin
   SetDataType(0);
 end;
 
-procedure TVerInfoRec.SetDataType(AValue: Word);
+procedure TVIBinVarRec.SetDataType(AValue: Word);
 begin
   fDataType := AValue;
 end;
 
-procedure TVerInfoRec.UnLink(const Child: TVerInfoRec);
+procedure TVIBinVarRec.UnLink(const Child: TVIBinVarRec);
 var
   Index: Integer; // index of child in list of children
 begin
@@ -597,7 +597,7 @@ begin
   fList.Delete(Index);
 end;
 
-function TVerInfoRec.WriteObject(const Writer: TStream): Integer;
+function TVIBinVarRec.WriteObject(const Writer: TStream): Integer;
 var
   RecSize: WORD;            // size of header section of record
   I: Integer;               // loops thru children
@@ -633,7 +633,7 @@ begin
   Writer.Seek(0, STREAM_SEEK_END);
 end;
 
-function TVerInfoRec.WritePadding(const Writer: TStream;
+function TVIBinVarRec.WritePadding(const Writer: TStream;
   const BytesWritten: Integer): Integer;
 var
   PadBuf: array[0..SizeOf(DWORD)-1] of Byte;    // buffer holding padding bytes
@@ -648,7 +648,7 @@ begin
   end;
 end;
 
-procedure TVerInfoRec.WriteToStream(const Stream: IStream);
+procedure TVIBinVarRec.WriteToStream(const Stream: IStream);
 var
   Writer: TStream;  // Adapts IStream as TStream
 begin
@@ -662,14 +662,14 @@ begin
   end;
 end;
 
-{ TVerInfoRecA }
+{ TVIBinVarRecA }
 
-function TVerInfoRecA.ClassRef: TVerInfoRecClass;
+function TVIBinVarRecA.ClassRef: TVIBinVarRecClass;
 begin
-  Result := TVerInfoRecA;
+  Result := TVIBinVarRecA;
 end;
 
-function TVerInfoRecA.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+function TVIBinVarRecA.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
   DataType: Word; out KeyName: string): Integer;
 var
   KeyChar: AnsiChar;  // character in key name
@@ -691,7 +691,7 @@ begin
   Result := Result + ReadPadding(Reader, Result);
 end;
 
-procedure TVerInfoRecA.SetStringValue(const Str: string);
+procedure TVIBinVarRecA.SetStringValue(const Str: string);
 var
   BufLen: Integer;  // required value buffer size
   StrA: AnsiString; // ANSI string conversion of Str
@@ -706,7 +706,7 @@ begin
   SetDataType(0);
 end;
 
-function TVerInfoRecA.ValuePtrToStr(const ValuePtr: Pointer): string;
+function TVIBinVarRecA.ValuePtrToStr(const ValuePtr: Pointer): string;
 var
   Value: AnsiString;
 begin
@@ -714,7 +714,7 @@ begin
   Result := UnicodeString(Value);
 end;
 
-function TVerInfoRecA.WriteHeader(const Writer: TStream;
+function TVIBinVarRecA.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
 var
   RecSize: Word;    // dummy value for record: written as a placeholder
@@ -739,14 +739,14 @@ begin
   Result := Result + WritePadding(Writer, Result);
 end;
 
-{ TVerInfoRecW }
+{ TVIBinVarRecW }
 
-function TVerInfoRecW.ClassRef: TVerInfoRecClass;
+function TVIBinVarRecW.ClassRef: TVIBinVarRecClass;
 begin
-  Result := TVerInfoRecW;
+  Result := TVIBinVarRecW;
 end;
 
-function TVerInfoRecW.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
+function TVIBinVarRecW.ReadHeader(const Reader: TStream; out RecSize, ValueSize,
   DataType: Word; out KeyName: string): Integer;
 var
   KeyChar: WideChar;  // character in key name
@@ -768,7 +768,7 @@ begin
   Result := Result + ReadPadding(Reader, Result);
 end;
 
-procedure TVerInfoRecW.SetStringValue(const Str: string);
+procedure TVIBinVarRecW.SetStringValue(const Str: string);
 var
   BufLen: Integer;  // required value buffer size
 begin
@@ -781,7 +781,7 @@ begin
   SetDataType(1);
 end;
 
-function TVerInfoRecW.ValuePtrToStr(const ValuePtr: Pointer): string;
+function TVIBinVarRecW.ValuePtrToStr(const ValuePtr: Pointer): string;
 var
   Value: UnicodeString;
 begin
@@ -789,7 +789,7 @@ begin
   Result := Value;
 end;
 
-function TVerInfoRecW.WriteHeader(const Writer: TStream;
+function TVIBinVarRecW.WriteHeader(const Writer: TStream;
   out RecSizePos: Integer): Integer;
 var
   RecSize: Word;            // dummy record size: this is actually written later
