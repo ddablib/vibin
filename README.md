@@ -30,6 +30,7 @@ The _Binary Version Information Manipulation Units_ are distributed in a zip fil
 
 * **`DelphiDabbler.Lib.VIBin.Resource.pas`** - Contains the single class you need to interact with to manipulate binary version information.
 * **`DelphiDabbler.Lib.VIBin.VarRec.pas`** - Contains support classes required by `DelphiDabbler.Lib.VIBin.Resource.pas`. These classes do not need to be accessed directly.
+* **`DelphiDabbler.Lib.VIBin.Defines.inc`** - Include file that defines symbols required by the `.pas` files to enable conditional compilation.
 * `README.md` - This read-me file.
 * `CHANGELOG.md` - The project's change log.
 * `MPL-2.0.txt` - Mozilla Public License v2.0.
@@ -39,8 +40,8 @@ There are also [demo programs](#demo-code) and documentation in the `Demos`. dir
 
 There are four possible ways to use the units:
 
-1. The simplest way is to add `DelphiDabbler.Lib.VIBin.Resource.pas` and `DelphiDabbler.Lib.VIBin.VarRec.pas` to your project.
-2. To make the units easier to re-use you can either copy them to a folder on your Delphi search path, or add the folder where you extracted the units to the search path. You then simply use the units as required without needing to add them to your project.
+1. The simplest way is to add `DelphiDabbler.Lib.VIBin.Resource.pas`, `DelphiDabbler.Lib.VIBin.VarRec.pas` and `DelphiDabbler.Lib.VIBin.Defines.inc` to your project.
+2. To make the units easier to re-use you can either copy them, with the associated `.inc` file, to a folder on your Delphi search path, or add the folder where you extracted the units to the search path. You then simply use the units as required without needing to add them to your project.
 3. For maximum portability you can add the units to a Delphi package.
 4. If you use Git you can add the [`ddablib/vibin`](https://github.com/ddablib/vibin) GitHub repository as a Git submodule. Obviously, it's safer if you fork the repo and use your own copy, just in case `ddablib/vibin` ever goes away.
 
